@@ -95,3 +95,47 @@ Environment="OLLAMA_HOST=0.0.0.0:11434"
 EOF
 sudo systemctl daemon-reload && sudo systemctl restart ollama
 ```
+
+## Current setup: nemotron-3-super on vLLM (NVFP4) — generation moved off Ollama
+
+Generation (vote Reasoner + opposition HyDE/letters) now runs on **vLLM** serving the
+NVFP4 build of nemotron-3-super, which **batches concurrent requests** (Ollama refuses to,
+for this `nemotron_h_moe` arch). vLLM owns the GPU, so **Ollama's nemotron is no longer
+loadable** — Ollama is kept only for `nomic-embed-text` embeddings.
+
+**The server** (persistent Docker, port `:8001`):
+
+```bash
+docker run -d --name vllm-nemotron --restart unless-stopped --gpus all --ipc host --shm-size 16gb \
+  -e VLLM_NVFP4_GEMM_BACKEND=marlin -e VLLM_ALLOW_LONG_MAX_MODEL_LEN=1 \
+  -e VLLM_USE_FLASHINFER_MOE_FP4=0 -e HF_HUB_OFFLINE=1 \
+  -v /home/asus/hfcache:/root/.cache/huggingface \
+  -v /home/asus/super_v3_reasoning_parser.py:/app/super_v3_reasoning_parser.py \
+  -p 8001:8001 vllm/vllm-openai:cu130-nightly \
+    --model unsloth/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 --served-model-name nemotron-3-super \
+    --host 0.0.0.0 --port 8001 --quantization fp4 --kv-cache-dtype fp8 \
+    --tensor-parallel-size 1 --trust-remote-code --gpu-memory-utilization 0.80 \
+    --max-model-len 32768 --max-num-seqs 4 --moe-backend marlin --mamba_ssm_cache_dtype float32 \
+    --enable-chunked-prefill \
+    --reasoning-parser-plugin /app/super_v3_reasoning_parser.py --reasoning-parser super_v3
+```
+
+(Weights are the **ungated** `unsloth/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4` mirror,
+cached at `~/hfcache`; `gpu-memory-utilization 0.80` keeps it within the GB10's 128 GB.)
+
+**Point the connector at it** — set these env vars (or just run the helper script), then launch:
+
+```bash
+export VOTE_PREDICTOR_LLM_URL=http://localhost:8001/v1   # over Tailscale: http://<box>:8001/v1
+export VOTE_PREDICTOR_LLM_MODEL=nemotron-3-super
+export OPP_LLM_BASE_URL=http://localhost:8001/v1
+export OPP_LLM_MODEL=nemotron-3-super
+export MASSING_USE_MOCK=1
+uvicorn connector.api.main:app --host 0.0.0.0 --port 8000
+# or: bash scripts/run_connector_vllm.sh
+```
+
+**Reasoning toggle.** nemotron's chain-of-thought is controlled by the `enable_thinking`
+chat-template kwarg. Opposition sends `chat_template_kwargs={"enable_thinking": false}` for
+HyDE (text is discarded after embedding) and letter generation (speed > marginal gain); the
+vote Reasoner keeps it on. Pass `reasoning=False` to `opposition_generator.llm.chat[_json]`.

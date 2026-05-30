@@ -107,7 +107,9 @@ def _generate_grounded(
         'Respond as JSON: {"letters": [{"text": "...", "concerns": ["shadow", ...]}]}'
     )
     try:
-        data = chat_json(prompt, system=system, temperature=0.7)
+        # reasoning off: generative letter-writing grounded in retrieved real letters —
+        # speed over marginal chain-of-thought gain.
+        data = chat_json(prompt, system=system, temperature=0.7, reasoning=False)
     except LLMError:
         return None
 
