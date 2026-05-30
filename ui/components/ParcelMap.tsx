@@ -9,11 +9,10 @@ function ClickToAnalyze() {
   const router = useRouter();
   useMapEvents({
     click(e) {
-      // TODO: replace lat/lng-as-id with a real parcel lookup against
-      // site-proforma. For now we encode the click point as the parcel id
-      // so the demo flow works end-to-end.
+      // Encodes the click point as the parcel id for the demo flow.
+      // TODO: replace with a real parcel lookup against site-proforma.
       const parcelId = `${e.latlng.lat.toFixed(5)}_${e.latlng.lng.toFixed(5)}`;
-      router.push(`/analyze/${parcelId}`);
+      router.push(`/analyze/${encodeURIComponent(parcelId)}`);
     },
   });
   return null;
@@ -28,7 +27,7 @@ export default function ParcelMap() {
       scrollWheelZoom
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <ClickToAnalyze />
