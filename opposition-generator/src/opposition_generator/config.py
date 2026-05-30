@@ -27,6 +27,13 @@ DATA_DIR = Path(os.getenv("OPP_DATA_DIR", COMPONENT_ROOT / "data"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 EMBED_MODEL = os.getenv("OPP_EMBED_MODEL", "nomic-embed-text")
 LLM_MODEL = os.getenv("OPP_LLM_MODEL", "nemotron-3-super:latest")
+# Generation backend: when OPP_LLM_BASE_URL is set, calls go to an OpenAI-compatible
+# /v1 endpoint (e.g. the shared vLLM server) instead of Ollama's native /api/chat.
+# Embeddings always stay on Ollama (OLLAMA_URL). Empty = use Ollama for generation too.
+LLM_BASE_URL = os.getenv("OPP_LLM_BASE_URL", "").rstrip("/")
+# Completion budget for the OpenAI path; generous so a reasoning model's chain-of-thought
+# does not starve the visible answer (content falls back to the reasoning channel if empty).
+LLM_MAX_TOKENS = int(os.getenv("OPP_LLM_MAX_TOKENS", "4096"))
 # Ingest tagging is a high-volume, low-stakes extraction task; allow a faster model.
 TAG_MODEL = os.getenv("OPP_TAG_MODEL", LLM_MODEL)
 # nomic-embed-text is 768-dim; mxbai-embed-large is 1024. The store reads the

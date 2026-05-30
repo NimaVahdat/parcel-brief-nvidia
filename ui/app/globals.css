@@ -33,11 +33,11 @@ html {
 /* ── hero radial glow ─────────────────────────────────────────────────────── */
 
 .hero-glow {
-  background: radial-gradient(ellipse 65% 60% at 15% 50%, rgba(59, 130, 246, 0.07) 0%, transparent 70%);
+  background: radial-gradient(ellipse 70% 65% at 12% 50%, rgba(59, 130, 246, 0.11) 0%, transparent 70%);
 }
 
 .dark .hero-glow {
-  background: radial-gradient(ellipse 65% 60% at 15% 50%, rgba(59, 130, 246, 0.14) 0%, transparent 70%);
+  background: radial-gradient(ellipse 70% 65% at 12% 50%, rgba(59, 130, 246, 0.20) 0%, transparent 70%);
 }
 
 /* ── glass cards (floating over the map) ─────────────────────────────────── */
@@ -297,4 +297,24 @@ html {
 /* Transition: smooth colour change when toggling */
 body {
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ── prefers-reduced-motion ──────────────────────────────────────────────────
+   Disable all CSS animations and shorten transitions for users who have
+   requested reduced motion. Framer Motion respects this via its own
+   shouldReduceMotion hook; this handles our custom CSS animations.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }

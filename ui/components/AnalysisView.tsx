@@ -154,7 +154,13 @@ function useSubTaskCycle(activeAgentIdx: number): number {
 
 // ─── main component ───────────────────────────────────────────────────────────
 
-export default function AnalysisView({ parcelId }: { parcelId: string }) {
+export default function AnalysisView({
+  parcelId,
+  initialOverrides = {},
+}: {
+  parcelId: string;
+  initialOverrides?: ProjectOverrides;
+}) {
   const [completedCount, setCompletedCount] = useState(0);
   const completedRef = useRef(0);
 
@@ -162,9 +168,9 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [briefVisible, setBriefVisible] = useState(false);
 
-  // Applied project overrides — changing these re-runs the pipeline (the "adjust
-  // & re-run" feature). Empty = evaluate the auto-generated massing.
-  const [overrides, setOverrides] = useState<ProjectOverrides>({});
+  // Applied project overrides — seeded from URL params (homepage scenario panel)
+  // and updated by ScenarioControls after the brief loads.
+  const [overrides, setOverrides] = useState<ProjectOverrides>(initialOverrides);
   const overridesKey = JSON.stringify(overrides);
 
   const doneRef = useRef<Set<string>>(new Set());

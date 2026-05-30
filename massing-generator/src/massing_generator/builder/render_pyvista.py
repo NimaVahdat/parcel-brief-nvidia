@@ -51,12 +51,12 @@ MATERIALS = {
     "wood":     dict(tex="wood",     color="#7a5a34", rough=0.7,  metal=0.0, tile=1.0),
     "bark":     dict(tex="bark",     color="#5a4230", rough=1.0,  metal=0.0, tile=0.6),
     "glass":    dict(tex=None,       color="#aee0f5", rough=0.05, metal=0.9, tile=1.0, opacity=0.4),
-    "metal":    dict(tex=None,       color="#888d92", rough=0.3,  metal=1.0, tile=1.0),
+    "metal":    dict(tex="metal",    color="#888d92", rough=0.3,  metal=1.0, tile=1.0),
     "trim":     dict(tex=None,       color="#f2efe8", rough=0.6,  metal=0.0, tile=1.0),
-    "stone":    dict(tex=None,       color="#c9c2b4", rough=0.8,  metal=0.0, tile=1.0),
+    "stone":    dict(tex="stone",    color="#c9c2b4", rough=0.8,  metal=0.0, tile=1.0),
     "interior": dict(tex=None,       color="#0e1216", rough=1.0,  metal=0.0, tile=1.0),
     # --- tower / curtain-wall materials ---
-    "granite":  dict(tex=None,       color="#3a3a3a", rough=0.55, metal=0.0, tile=1.0),
+    "granite":  dict(tex="granite",  color="#3a3a3a", rough=0.55, metal=0.0, tile=1.0),
     "spandrel": dict(tex=None,       color="#41586c", rough=0.4,  metal=0.1, tile=1.0),
     "mullion":  dict(tex=None,       color="#33333d", rough=0.4,  metal=0.5, tile=1.0),
     "glasscw":  dict(tex=None,       color="#cfe6f4", rough=0.04, metal=0.9, tile=1.0, opacity=0.62),
@@ -98,6 +98,14 @@ def _add_blueprint_mesh(pl, mesh, matname):
 
 
 def get_texture(name):
+    # Return a FRESH pv.Texture per call (cache the decoded array, not the
+    # Texture object). VTK's glTF exporter mis-indexes images when one Texture
+    # instance is shared across many actors: it dedupes the image array but
+    # leaves some `texture.source` pointers at the pre-dedup indices, past the
+    # end of the array. That invalid glTF loads as a blank page in model-viewer
+    # (three.js throws on the unresolved reference). Handing each actor its own
+    # Texture keeps the source pointers valid; the byte-identical images are
+    # collapsed back to one apiece by _dedup_and_shrink_gltf after export.
     if name not in _TEX_CACHE:
         # Load via PIL, not pv.read_texture: the latter picks the VTK reader by
         # file extension, so a JPEG saved as `.png` (common for dropped-in
@@ -107,10 +115,10 @@ def get_texture(name):
         from PIL import Image
 
         img = Image.open(os.path.join(TEX_DIR, f"{name}.png")).convert("RGB")
-        t = pv.Texture(np.asarray(img))
-        t.repeat = True
-        _TEX_CACHE[name] = t
-    return _TEX_CACHE[name]
+        _TEX_CACHE[name] = np.asarray(img)
+    t = pv.Texture(_TEX_CACHE[name])
+    t.repeat = True
+    return t
 
 
 # ----------------------------------------------------------------------------
@@ -119,8 +127,23 @@ def get_texture(name):
 def quad(p0, p1, p2, p3, tu=1.0, tv=1.0):
     pts = np.array([p0, p1, p2, p3], float)
     mesh = pv.PolyData(pts, faces=[4, 0, 1, 2, 3])
-    mesh.active_texture_coordinates = np.array(
-        [[0, 0], [tu, 0], [tu, tv], [0, tv]], float)
+    # Texcoords MUST come from VTK's plane-mapping filter. VTK's glTF exporter
+    # only serializes texcoords produced by a filter — UVs assigned straight to
+    # active_texture_coordinates (or reassigned as a new array) are silently
+    # dropped on export, so the surface renders flat/untextured in the HTML
+    # model-viewer even though the PNG screenshot looks correct. Map the plane
+    # origin->p0, u->p1, v->p3 (U runs p0->p1, V runs p0->p3), then scale the
+    # filter's array IN PLACE to the tile counts. This reproduces the old manual
+    # UVs [[0,0],[tu,0],[tu,tv],[0,tv]] exactly but survives glTF export.
+    try:
+        mesh = mesh.texture_map_to_plane(
+            origin=p0, point_u=p1, point_v=p3, inplace=False)
+        tc = mesh.active_texture_coordinates
+        tc[:, 0] *= tu
+        tc[:, 1] *= tv
+    except Exception:  # noqa: BLE001 — degenerate quad: keep direct UVs (PNG-only)
+        mesh.active_texture_coordinates = np.array(
+            [[0, 0], [tu, 0], [tu, tv], [0, tv]], float)
     return mesh
 
 
@@ -884,23 +907,8 @@ def render(spec, mode, out_html, screenshot=None, glb_out=None):
         ]
     elif mode == "hq":
         pl.set_background("#bcdcf2", top="#eef7ff")
-        # warm sun (key) + cool sky fill, so shadows have direction
-        W, D, R = dims["W"], dims["D"], dims["ridge"]
-        sun = pv.Light(position=(W * 1.2, -D * 0.5, R * 4), focal_point=(W/2, D/2, R*0.3),
-                       color="#fff4e0", intensity=1.15)
-        sun.positional = False
-        fill = pv.Light(position=(-W * 0.6, D * 1.4, R * 2.5), focal_point=(W/2, D/2, R*0.3),
-                        color="#d6e6ff", intensity=0.6)
-        fill.positional = False
-        amb = pv.Light(light_type="headlight", intensity=0.25)
-        pl.add_light(sun)
-        pl.add_light(fill)
-        pl.add_light(amb)
+        # no scene lights — textures carry the look; model-viewer lights the glTF
         pl.enable_anti_aliasing("ssaa")
-        try:
-            pl.enable_shadows()
-        except Exception:
-            pass
     else:
         pl.set_background("#f4f7fb", top="#ffffff")
 
@@ -924,7 +932,7 @@ def render(spec, mode, out_html, screenshot=None, glb_out=None):
         # chokes on the scene (the HTML below is the primary deliverable).
         try:
             pl.export_gltf(glb_out)
-            _shrink_gltf_textures(glb_out)
+            _dedup_and_shrink_gltf(glb_out)
             glb_written = True
             print(f"Wrote {glb_out}")
         except Exception as e:  # noqa: BLE001
@@ -1136,36 +1144,81 @@ _MODELVIEWER_HTML = """<!doctype html>
 """
 
 
-def _shrink_gltf_textures(glb_path, max_px=512):
-    """Downscale the textures VTK embedded in the exported glTF.
+def _dedup_and_shrink_gltf(glb_path, max_px=512):
+    """Deduplicate + downscale the textures VTK embedded in the exported glTF.
 
-    VTK's glTF exporter rescales each material texture to a 4096x4096 PNG (tens
-    of MB apiece), bloating the model to ~60 MB — far too heavy to inline into
-    the HTML. Our source textures are 512px, so downscaling is lossless in
-    practice. VTK emits one dedicated buffer per bufferView, so each image's
-    buffer can be rewritten in place.
+    Because each actor now carries its own pv.Texture (see get_texture), VTK
+    emits one image per textured actor — dozens of byte-identical copies — and
+    rescales each to a 4096x4096 PNG (tens of MB apiece). We collapse images
+    with identical bytes to a single copy (repointing every `texture.source` at
+    the first one), downscale the survivors to <=max_px, and blank the orphaned
+    duplicates' buffers to reclaim the space. VTK gives each image its own
+    dedicated buffer, so buffers are rewritten in place — no accessor /
+    bufferView reindexing needed.
     """
+    import hashlib
     import io
 
     from PIL import Image
 
     with open(glb_path, encoding="utf-8") as f:
         gltf = json.load(f)
+    imgs = gltf.get("images", [])
     bvs, bufs = gltf.get("bufferViews", []), gltf.get("buffers", [])
-    changed = False
-    for img in gltf.get("images", []):
+
+    def img_buffer(img):
+        """(raw_bytes, bufferView, buffer) for an image in its own data buffer."""
         bvi = img.get("bufferView")
         if bvi is None:
-            continue
+            return None, None, None
         bv = bvs[bvi]
         buf = bufs[bv["buffer"]]
         uri = buf.get("uri", "")
-        # only touch a buffer dedicated to this one image (VTK's layout)
         if not uri.startswith("data:") or bv.get("byteOffset", 0) != 0:
-            continue
+            return None, bv, buf
         if buf.get("byteLength") != bv.get("byteLength"):
+            return None, bv, buf
+        return base64.b64decode(uri.split(",", 1)[1]), bv, buf
+
+    # 1. hash each image; canonical[i] = first image index sharing its bytes
+    canonical, first_by_hash = {}, {}
+    for i, img in enumerate(imgs):
+        raw, _, _ = img_buffer(img)
+        if raw is None:
+            canonical[i] = i  # not a rewritable dedicated buffer; leave as-is
             continue
-        raw = base64.b64decode(uri.split(",", 1)[1])
+        h = hashlib.md5(raw).hexdigest()
+        canonical[i] = first_by_hash.setdefault(h, i)
+
+    # 2. repoint every texture at the canonical copy of its image
+    for tex in gltf.get("textures", []):
+        s = tex.get("source")
+        if s is not None and s in canonical:
+            tex["source"] = canonical[s]
+    used = {
+        canonical.get(t.get("source"), t.get("source"))
+        for t in gltf.get("textures", [])
+    }
+
+    def write_buffer(bv, buf, data):
+        buf["uri"] = "data:application/octet-stream;base64," + base64.b64encode(data).decode("ascii")
+        buf["byteLength"] = len(data)
+        bv["byteLength"] = len(data)
+
+    tiny = io.BytesIO()
+    Image.new("RGB", (1, 1)).save(tiny, "PNG")
+    tiny = tiny.getvalue()
+
+    # 3. downscale survivors; blank orphaned duplicate buffers
+    changed = False
+    for i, img in enumerate(imgs):
+        raw, bv, buf = img_buffer(img)
+        if raw is None:
+            continue
+        if i not in used:  # duplicate copy nothing points at anymore
+            write_buffer(bv, buf, tiny)
+            changed = True
+            continue
         im = Image.open(io.BytesIO(raw))
         if max(im.size) <= max_px:
             continue
@@ -1173,11 +1226,18 @@ def _shrink_gltf_textures(glb_path, max_px=512):
         im.thumbnail((max_px, max_px), Image.LANCZOS)
         out = io.BytesIO()
         im.save(out, "PNG", optimize=True)
-        data = out.getvalue()
-        buf["uri"] = "data:application/octet-stream;base64," + base64.b64encode(data).decode("ascii")
-        buf["byteLength"] = len(data)
-        bv["byteLength"] = len(data)
+        write_buffer(bv, buf, out.getvalue())
         changed = True
+
+    # 4. VTK tags image bufferViews with an ARRAY_BUFFER target meant for vertex
+    # data, which trips a glTF-validator error (BUFFER_VIEW_TARGET_OVERRIDE).
+    # `target` is optional, so drop it on any bufferView an image points at.
+    for img in imgs:
+        bvi = img.get("bufferView")
+        if bvi is not None and "target" in bvs[bvi]:
+            del bvs[bvi]["target"]
+            changed = True
+
     if changed:
         with open(glb_path, "w", encoding="utf-8") as f:
             json.dump(gltf, f)

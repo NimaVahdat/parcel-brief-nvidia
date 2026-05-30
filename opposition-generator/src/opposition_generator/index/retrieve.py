@@ -114,7 +114,9 @@ def hyde_expand(project_text: str, neighborhood: str) -> str:
         f"project would raise.\n\nProject:\n{project_text}"
     )
     try:
-        return chat(prompt, temperature=0.7)
+        # reasoning off: this text is only embedded for retrieval, then discarded —
+        # chain-of-thought here is pure latency.
+        return chat(prompt, temperature=0.7, reasoning=False)
     except LLMError:
         return project_text
 

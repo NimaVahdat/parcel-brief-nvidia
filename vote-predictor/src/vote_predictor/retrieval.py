@@ -115,8 +115,11 @@ def global_logit(profiles: dict[str, dict]) -> float:
     return sum(p["propensity_logit"] for p in profiles.values()) / len(profiles)
 
 
-def _case_summary(record: dict) -> str:
-    """Render a one-line feature summary for a precedent application.
+def case_summary(record: dict) -> str:
+    """Render a one-line feature summary for an application (precedent or subject).
+
+    Shared by precedent retrieval and the verification layer's Precedent-Checker so the subject
+    and its precedents are summarized in the same space.
 
     Args:
         record (dict): An application row.
@@ -255,7 +258,7 @@ def find_similar_applications(
         """Build a precedent case dict with its evidence id and outcome."""
         return {
             "application_id": str(app_id),
-            "summary": _case_summary(record),
+            "summary": case_summary(record),
             "outcome": "approved" if outcomes.get(app_id, 0) > 0.5 else "rejected",
             "staff_rec": str(recs.get(app_id, "unknown")),
             "method": method,
@@ -301,6 +304,43 @@ def find_similar_applications(
         scored.append((dist, _case(record, app_id, "feature_distance")))
     scored.sort(key=lambda item: item[0])
     return [case for _, case in scored[:k]]
+
+
+def resolve_precedents(precedent_ids: set[str]) -> dict[str, dict]:
+    """Independently re-resolve cited precedent ids against the live corpus (for verification).
+
+    The deterministic Skeptic gate already rejects cites that are absent from the retrieval-time
+    set. This is a *second*, independent lookup straight against the application corpus parquet,
+    so the Precedent-Checker can catch the case where a precedent was retrieved from a stale
+    embedding index but no longer exists in the current corpus (index/corpus drift). Each
+    resolved record carries a freshly-derived summary and outcome — re-read, not the value the
+    Reasoner saw — so the analogousness judgment rests on the corpus, not the prompt.
+
+    Args:
+        precedent_ids (set[str]): Precedent application ids cited by gate-passed claims.
+
+    Returns:
+        dict[str, dict]: ``{id: {"summary", "outcome", "staff_rec"}}`` for the ids that resolve
+        to a real ingested record; ids that do not resolve are simply absent from the map.
+    """
+    if not precedent_ids or not (
+        config.APPLICATIONS_PARQUET.exists() and config.VOTES_PARQUET.exists()
+    ):
+        return {}
+    apps, outcomes, recs = _corpus()
+    apps_by_id = apps.drop_duplicates(subset=["application_id"]).set_index("application_id")
+    resolved: dict[str, dict] = {}
+    for raw_id in precedent_ids:
+        app_id = str(raw_id)
+        if app_id not in apps_by_id.index or app_id not in outcomes.index:
+            continue  # does not re-resolve -> the Precedent-Checker treats it as spurious
+        record = apps_by_id.loc[app_id].to_dict()
+        resolved[app_id] = {
+            "summary": case_summary(record),
+            "outcome": "approved" if outcomes.get(app_id, 0) > 0.5 else "rejected",
+            "staff_rec": str(recs.get(app_id, "unknown")),
+        }
+    return resolved
 
 
 def format_context(
