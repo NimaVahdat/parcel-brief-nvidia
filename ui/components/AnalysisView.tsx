@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { BriefResponse, ProjectOverrides } from "@/lib/api";
 import { analyzeStream } from "@/lib/api";
 import BriefViewer from "@/components/BriefViewer";
+import SectionExportMenu from "@/components/export/SectionExportMenu";
 
 // ─── agent definitions ────────────────────────────────────────────────────────
 
@@ -221,6 +222,15 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
     if (apiResult?.brief) {
       return (
         <div className="animate-fade-in space-y-4">
+          {/* Brief action bar — export sits alongside the scenario controls */}
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-slate-900">Development Brief</h2>
+            <SectionExportMenu
+              brief={apiResult.brief}
+              parcelId={parcelId}
+              overrides={overrides}
+            />
+          </div>
           <ScenarioControls
             brief={apiResult.brief}
             applied={overrides}
@@ -250,13 +260,17 @@ function ScenarioControls({
   applied: ProjectOverrides;
   onRerun: (o: ProjectOverrides) => void;
 }) {
-  const opt = brief.design_options.options[0];
-  const baseUnits = Object.values(opt.unit_mix).reduce((s, n) => s + n, 0);
+  // `options` can legally be empty; fall back to zeroed defaults so the scenario
+  // controls still render (and don't crash) when no base massing is available.
+  const opt = brief.design_options.options[0] as
+    | BriefResponse["design_options"]["options"][number]
+    | undefined;
+  const baseUnits = opt ? Object.values(opt.unit_mix).reduce((s, n) => s + n, 0) : 0;
 
-  const [height, setHeight] = useState<number>(applied.height_m ?? opt.height_m);
+  const [height, setHeight] = useState<number>(applied.height_m ?? opt?.height_m ?? 0);
   const [units, setUnits] = useState<number>(applied.total_units ?? baseUnits);
   const [affordable, setAffordable] = useState<number>(
-    applied.affordable_units ?? opt.affordable_units
+    applied.affordable_units ?? opt?.affordable_units ?? 0
   );
 
   const isCustom = Object.keys(applied).length > 0;
