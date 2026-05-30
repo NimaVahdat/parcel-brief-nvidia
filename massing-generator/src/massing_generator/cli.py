@@ -60,12 +60,13 @@ def build(
 def render(
     spec: Annotated[Path, typer.Argument(help="Building-spec JSON to render.")],
     mode: Annotated[str, typer.Option(help="hq | normal | blueprint | plotly")] = "hq",
+    glb: Annotated[bool, typer.Option(help="Also export a glTF/GLB model (slower).")] = False,
 ) -> None:
     """Render an existing building spec to 3D (offline — no LLM call)."""
     from massing_generator.builder import pipeline
 
     data = json.loads(spec.read_text())
-    art = pipeline.render_spec(data, spec.stem, mode=mode)
+    art = pipeline.render_spec(data, spec.stem, mode=mode, glb=glb)
     print(json.dumps(art.__dict__, indent=2))
 
 

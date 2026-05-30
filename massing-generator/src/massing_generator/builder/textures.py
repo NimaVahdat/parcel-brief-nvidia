@@ -56,7 +56,15 @@ def _tint(noise, lo, hi):
 
 
 def _save(arr, name):
-    Image.fromarray(arr, "RGB").save(os.path.join(TEX_DIR, f"{name}.png"))
+    """Write a texture PNG, but never clobber one that already exists.
+
+    User-supplied textures dropped into TEX_DIR take precedence; regeneration
+    is opt-in via `generate_all(overwrite=True)` (CLI: `--force`).
+    """
+    path = os.path.join(TEX_DIR, f"{name}.png")
+    if os.path.exists(path):
+        return
+    Image.fromarray(arr, "RGB").save(path)
 
 
 # ----------------------------------------------------------------------------
@@ -149,12 +157,30 @@ def bark():
     _save(_streaks(50, (60, 44, 30), (104, 78, 52)), "bark")
 
 
-def generate_all():
+_MATERIALS = {
+    "grass": grass, "dirt": dirt, "concrete": concrete, "stucco": stucco,
+    "brick": brick, "shingle": shingle, "wood": wood, "bark": bark,
+}
+
+
+def generate_all(overwrite=False):
+    """Generate the procedural textures.
+
+    Existing PNGs are preserved by default so user-supplied textures survive a
+    run. Pass `overwrite=True` to force-regenerate every material.
+    """
     os.makedirs(TEX_DIR, exist_ok=True)
-    grass(); dirt(); concrete(); stucco(); brick()
-    shingle(); wood(); bark()
+    for name, fn in _MATERIALS.items():
+        path = os.path.join(TEX_DIR, f"{name}.png")
+        if os.path.exists(path):
+            if not overwrite:
+                continue
+            os.remove(path)  # _save skips existing files; clear it first
+        fn()
     print(f"Textures written to {TEX_DIR}")
 
 
 if __name__ == "__main__":
-    generate_all()
+    import sys
+
+    generate_all(overwrite="--force" in sys.argv)

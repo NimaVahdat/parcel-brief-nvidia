@@ -13,6 +13,7 @@ dependencies = [
     "trame-vtk>=2.8",
     "trame-vuetify>=2.7",
     "nest-asyncio2>=1.7",
+    "imageio>=2.30",
     "pillow>=10.0",
     "numpy>=1.26",
     "fastapi>=0.110",
