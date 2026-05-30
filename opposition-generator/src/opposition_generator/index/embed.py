@@ -7,11 +7,15 @@ vector store config selects (SQLite by default, pgvector when DATABASE_URL set).
 
 from __future__ import annotations
 
+import time
+
 import httpx
 
 from opposition_generator import config
 from opposition_generator.index.corpus import load_corpus
 from opposition_generator.index.store import Deputation, get_store
+
+_MAX_RETRIES = 4
 
 
 class EmbeddingError(RuntimeError):
@@ -26,27 +30,35 @@ def embed_text(text: str) -> list[float]:
 def embed_batch(texts: list[str]) -> list[list[float]]:
     """Embed a list of strings via Ollama.
 
-    Ollama's /api/embeddings takes one prompt at a time, so we loop. Kept as a
-    batch API so callers (and a future batched backend) don't need to change.
+    Ollama's /api/embeddings takes one prompt at a time, so we loop. Each request
+    is retried with backoff because a busy Ollama (e.g. mid large-model load)
+    occasionally returns a transient 500, which shouldn't abort a whole index build.
     """
     url = f"{config.OLLAMA_URL}/api/embeddings"
     out: list[list[float]] = []
-    try:
-        with httpx.Client(timeout=config.EMBED_TIMEOUT_S) as client:
-            for text in texts:
-                resp = client.post(
-                    url, json={"model": config.EMBED_MODEL, "prompt": text}
-                )
-                resp.raise_for_status()
-                vec = resp.json().get("embedding")
-                if not vec:
-                    raise EmbeddingError(f"empty embedding for text: {text[:60]!r}")
-                out.append([float(x) for x in vec])
-    except (httpx.HTTPError, KeyError, ValueError) as exc:
-        raise EmbeddingError(
-            f"embedding backend {url} (model={config.EMBED_MODEL}) failed: {exc}"
-        ) from exc
+    with httpx.Client(timeout=config.EMBED_TIMEOUT_S) as client:
+        for text in texts:
+            out.append(_embed_one(client, url, text))
     return out
+
+
+def _embed_one(client: httpx.Client, url: str, text: str) -> list[float]:
+    last_err: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            resp = client.post(url, json={"model": config.EMBED_MODEL, "prompt": text})
+            resp.raise_for_status()
+            vec = resp.json().get("embedding")
+            if not vec:
+                raise EmbeddingError(f"empty embedding for text: {text[:60]!r}")
+            return [float(x) for x in vec]
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
+            last_err = exc
+            time.sleep(1.5 * (attempt + 1))  # linear backoff: 1.5s, 3s, 4.5s
+    raise EmbeddingError(
+        f"embedding backend {url} (model={config.EMBED_MODEL}) failed after "
+        f"{_MAX_RETRIES} attempts: {last_err}"
+    )
 
 
 def build_index() -> int:
