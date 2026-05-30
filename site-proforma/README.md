@@ -40,25 +40,26 @@ other components surface.
 
 ## The site lookup (`lookup`)
 
-- **Transit distance is real** — computed (haversine) from actual TTC subway-station
-  coordinates.
-- **Zoning envelope is a deterministic, location-aware gradient** (downtown → high
-  density, avenues → mid-rise, neighbourhoods → low-rise) derived from distance to
-  the core — a defensible screening estimate.
-- Heritage / sun-shadow / conservation use sensible rules (e.g. a shadow-study rule
-  triggers for ≥30 m buildings).
+- **Zoning envelope is real** — point-in-polygon over the City's **Zoning By-law
+  569-2013** open data: max height from the Height Overlay, FSI from the Zoning Area
+  layer (`FSI_TOTAL`), permitted uses from the zone category (`ZN_ZONE`). Where the
+  by-law leaves an attribute unspecified in the geometry, a sensible zone-category
+  default fills in. Run `site-proforma fetch-zoning` once to download the layers
+  (~14k polygons); without them, `lookup()` degrades to a location-aware estimate.
+- **Transit distance is real** — haversine from actual TTC subway-station coordinates.
+- Sun-shadow / heritage / conservation use sensible rules (e.g. a shadow-study rule
+  triggers for ≥30 m buildings). Heritage spatial join is the remaining next step.
 
-The fully-legal envelope needs the City's **Zoning By-law spatial layer**
-(point-in-polygon). That's the documented next step — drop the GeoJSON at
-`data/zoning.geojson` and wire `_zoning_from_geojson` (install the `gis` extra). The
-contract and the pro-forma don't change.
+Real examples: King/Bay → 84 m / FSI 12.0; Yonge-St Clair → 30 m / FSI 4.25; a North
+York residential parcel → 10 m / FSI 0.6.
 
 ## Run it
 
 ```bash
-pip install -e site-proforma            # pure-Python, no GIS/DB needed
-site-proforma lookup --parcel-id 43.6532_-79.3832
-site-proforma proforma --parcel-id 43.6532_-79.3832
+pip install -e 'site-proforma[gis]'     # gis extra = shapely + httpx for real zoning
+site-proforma fetch-zoning              # download the City zoning layers (once)
+site-proforma lookup --parcel-id 43.6486_-79.3806
+site-proforma proforma --parcel-id 43.6486_-79.3806
 uvicorn site_proforma.service:app --port 8004     # optional service
 ```
 
@@ -78,16 +79,21 @@ uvicorn site_proforma.service:app --port 8004     # optional service
 
 | File | Purpose |
 |---|---|
-| `site.py` | `lookup()` — envelope + constraints (real transit, location-aware zoning) |
+| `site.py` | `lookup()` — envelope + constraints (real transit; real or fallback zoning) |
+| `gis.py` | real zoning point-in-polygon over the City Zoning By-law layers |
 | `proforma.py` | `calculate()` — the real DCF + IRR + sensitivities |
 | `assumptions.py` | env-overridable Toronto benchmarks |
 | `schemas.py` · `cli.py` · `service.py` | contract types, CLI, FastAPI on :8004 |
 
 ## Honest scope
 
-- `calculate()` is a **real, defensible DCF** (the high-value part).
-- `lookup()` zoning is a **location-aware estimate**, not the legal spatial layer yet
-  (transit distance is real). The GIS hook is documented above.
+- `lookup()` zoning (height / FSI / uses) is **real** — from the City Zoning By-law
+  layers — with a graceful estimate fallback when the data isn't downloaded. Transit
+  distance is real.
+- `calculate()` is a **real, defensible DCF**; its cost/rent/cap-rate inputs are
+  tunable Toronto benchmarks (not a live per-parcel feed).
+- Still estimated: parcel footprint geometry (a ~20 m placeholder; the real parcel
+  layer is separate) and heritage status (spatial join pending).
 
 ## Notes for the team
 
