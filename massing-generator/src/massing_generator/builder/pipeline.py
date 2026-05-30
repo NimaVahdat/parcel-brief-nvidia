@@ -183,13 +183,18 @@ def ensure_textures() -> None:
     tx.generate_all()
 
 
-def render_spec(spec: dict, basename: str, *, mode: str = "hq") -> RenderArtifacts:
+def render_spec(
+    spec: dict, basename: str, *, mode: str = "hq", glb: bool = True
+) -> RenderArtifacts:
     """Render a building spec to a 3D artifact.
 
     Prefers the textured PyVista renderer (interactive HTML + PNG + best-effort
     glTF). Falls back to the dependency-light Plotly renderer, and finally to
     just writing the spec JSON, so a result is always produced even on a
     headless box without VTK.
+
+    Set ``glb=False`` to skip the glTF export — it is the slow part of the
+    render and is not needed when only the HTML/PNG artifacts are consumed.
     """
     ensure_dirs()
     base = _slug(basename)
@@ -206,9 +211,13 @@ def render_spec(spec: dict, basename: str, *, mode: str = "hq") -> RenderArtifac
 
             ensure_textures()
             render_pyvista.render(
-                spec, mode, str(html_path), screenshot=str(png_path), glb_out=str(glb_path)
+                spec,
+                mode,
+                str(html_path),
+                screenshot=str(png_path),
+                glb_out=str(glb_path) if glb else None,
             )
-            three_d = str(glb_path) if glb_path.exists() else str(html_path)
+            three_d = str(glb_path) if glb and glb_path.exists() else str(html_path)
             renders = [str(png_path)] if png_path.exists() else []
             return RenderArtifacts(three_d, renders, str(spec_path))
         except Exception as e:  # noqa: BLE001

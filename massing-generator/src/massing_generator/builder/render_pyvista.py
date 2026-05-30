@@ -6,7 +6,9 @@ Quality modes:
     --mode hq          procedural PBR textures (grass, brick, shingle, wood, ...)
     --mode blueprint   X-ray / blueprint aesthetic: translucent fills + cyan wireframe
 
-Outputs an interactive standalone HTML (vtk.js) and optional PNG screenshot.
+Outputs an interactive standalone HTML and optional PNG screenshot. Textured
+modes back the HTML with a <model-viewer> + glTF (keeps textures); blueprint
+uses the vtk.js export.
 
 Usage:
     python render_pyvista.py [spec.json] --mode hq -o building_hq.html
@@ -17,6 +19,7 @@ Coordinate frame: x = frontage, y = depth (front=0 -> rear), z = up.
 """
 
 import argparse
+import base64
 import json
 import math
 import os
@@ -96,7 +99,15 @@ def _add_blueprint_mesh(pl, mesh, matname):
 
 def get_texture(name):
     if name not in _TEX_CACHE:
-        t = pv.read_texture(os.path.join(TEX_DIR, f"{name}.png"))
+        # Load via PIL, not pv.read_texture: the latter picks the VTK reader by
+        # file extension, so a JPEG saved as `.png` (common for dropped-in
+        # textures) hits vtkPNGReader and fails ("not a PNG file"), leaving a
+        # broken texture that corrupts the glTF export. PIL sniffs the real
+        # format; we hand VTK a plain RGB array.
+        from PIL import Image
+
+        img = Image.open(os.path.join(TEX_DIR, f"{name}.png")).convert("RGB")
+        t = pv.Texture(np.asarray(img))
         t.repeat = True
         _TEX_CACHE[name] = t
     return _TEX_CACHE[name]
@@ -907,14 +918,29 @@ def render(spec, mode, out_html, screenshot=None, glb_out=None):
     if screenshot:
         pl.screenshot(screenshot)
         print(f"Wrote {screenshot}")
+    glb_written = False
     if glb_out:
         # best-effort web-friendly model export; non-fatal if VTK's exporter
         # chokes on the scene (the HTML below is the primary deliverable).
         try:
             pl.export_gltf(glb_out)
+            _shrink_gltf_textures(glb_out)
+            glb_written = True
             print(f"Wrote {glb_out}")
         except Exception as e:  # noqa: BLE001
             print(f"glTF export skipped: {e}")
+
+    # Interactive HTML. vtk.js (export_html) cannot serialize textures, so for
+    # the textured modes we instead emit a <model-viewer> page backed by the
+    # glTF, which embeds the material textures. Fall back to the recoloured
+    # vtk.js export when no glTF is available (its exporter choked) or for the
+    # blueprint X-ray view, which is texture-free by design.
+    if mode != "blueprint" and glb_written:
+        _write_modelviewer_html(out_html, os.path.basename(glb_out))
+        pl.close()
+        print(f"Wrote {out_html}  (mode={mode}, textured via model-viewer)")
+        return
+
     # vtk.js can't carry the textures, so drop them and fall back to each
     # material's solid colour for the interactive HTML (the PNG/glTF above keep the
     # full textured look). Without this every textured surface exports as white.
@@ -1085,6 +1111,93 @@ border:1px solid;text-align:center;transition:all .15s;letter-spacing:.5px;}
 })();
 </script>
 """
+
+
+_MODELVIEWER_HTML = """<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title}</title>
+<style>
+  html,body{{margin:0;height:100%;background:linear-gradient(180deg,#eef7ff 0%,#bcdcf2 100%);}}
+  model-viewer{{width:100%;height:100%;}}
+  .cap{{position:fixed;left:14px;bottom:12px;z-index:9;font:12px/1.4 system-ui,sans-serif;
+       color:#1b2b3a;background:rgba(255,255,255,.72);padding:6px 10px;border-radius:8px;
+       backdrop-filter:blur(6px);box-shadow:0 2px 12px rgba(0,0,0,.12);}}
+</style>
+<script type="module"
+  src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
+</head><body>
+<model-viewer src="{src}" alt="{title}" camera-controls auto-rotate
+  shadow-intensity="1" exposure="1.0" environment-image="neutral"
+  camera-orbit="45deg 68deg auto" min-camera-orbit="auto 0deg auto"
+  interaction-prompt="none"></model-viewer>
+<div class="cap">{title} &mdash; drag to orbit &middot; scroll to zoom</div>
+</body></html>
+"""
+
+
+def _shrink_gltf_textures(glb_path, max_px=512):
+    """Downscale the textures VTK embedded in the exported glTF.
+
+    VTK's glTF exporter rescales each material texture to a 4096x4096 PNG (tens
+    of MB apiece), bloating the model to ~60 MB — far too heavy to inline into
+    the HTML. Our source textures are 512px, so downscaling is lossless in
+    practice. VTK emits one dedicated buffer per bufferView, so each image's
+    buffer can be rewritten in place.
+    """
+    import io
+
+    from PIL import Image
+
+    with open(glb_path, encoding="utf-8") as f:
+        gltf = json.load(f)
+    bvs, bufs = gltf.get("bufferViews", []), gltf.get("buffers", [])
+    changed = False
+    for img in gltf.get("images", []):
+        bvi = img.get("bufferView")
+        if bvi is None:
+            continue
+        bv = bvs[bvi]
+        buf = bufs[bv["buffer"]]
+        uri = buf.get("uri", "")
+        # only touch a buffer dedicated to this one image (VTK's layout)
+        if not uri.startswith("data:") or bv.get("byteOffset", 0) != 0:
+            continue
+        if buf.get("byteLength") != bv.get("byteLength"):
+            continue
+        raw = base64.b64decode(uri.split(",", 1)[1])
+        im = Image.open(io.BytesIO(raw))
+        if max(im.size) <= max_px:
+            continue
+        im = im.convert("RGB")
+        im.thumbnail((max_px, max_px), Image.LANCZOS)
+        out = io.BytesIO()
+        im.save(out, "PNG", optimize=True)
+        data = out.getvalue()
+        buf["uri"] = "data:application/octet-stream;base64," + base64.b64encode(data).decode("ascii")
+        buf["byteLength"] = len(data)
+        bv["byteLength"] = len(data)
+        changed = True
+    if changed:
+        with open(glb_path, "w", encoding="utf-8") as f:
+            json.dump(gltf, f)
+
+
+def _write_modelviewer_html(out_html, glb_name):
+    """Write a standalone <model-viewer> page that loads the textured glTF.
+
+    The glTF is inlined as a data URI so the page renders when opened straight
+    from disk — browsers block file:// fetches of a sibling .glb. This is what
+    preserves the material textures that the vtk.js export drops.
+    """
+    glb_path = os.path.join(os.path.dirname(out_html), glb_name)
+    with open(glb_path, "rb") as f:
+        raw = f.read()
+    mime = "model/gltf-binary" if raw[:4] == b"glTF" else "model/gltf+json"
+    src = f"data:{mime};base64," + base64.b64encode(raw).decode("ascii")
+    title = os.path.splitext(os.path.basename(out_html))[0]
+    with open(out_html, "w", encoding="utf-8") as f:
+        f.write(_MODELVIEWER_HTML.format(title=title, src=src))
 
 
 def inject_controls(html_path):
