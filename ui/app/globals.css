@@ -202,6 +202,30 @@ html {
   animation: checkDraw 0.45s ease-out 0.35s both;
 }
 
+/* export menu popup — small scale/fade on open (top-right anchored) */
+@keyframes menuPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-menu-pop {
+  transform-origin: top right;
+  animation: menuPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Respect users who prefer reduced motion — disable the popup animation. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-menu-pop {
+    animation: none;
+  }
+}
+
 /* ── dark mode ───────────────────────────────────────────────────────────────
    Applied when <html class="dark"> is set.
    Uses higher specificity (.dark .cls = 0,2,0) to override plain Tailwind
