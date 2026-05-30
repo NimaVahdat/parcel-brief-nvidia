@@ -51,9 +51,26 @@ python -m eval.evaluate     # leave-one-out over the corpus
 ```
 
 Reports **accuracy, AUC, Brier (calibration), and lift over the base rate** — the
-honest bar, since Toronto approves most applications. `approval_probability` is
-measurable this way; `per_councillor` and `levers` have no counterfactual ground
-truth and are face-validity checks only.
+honest bar, since Toronto approves most applications.
+
+**What the backtest tells us (honest results):**
+- On the **feature-rich seed** corpus the method separates cleanly (AUC ~1.0) — the
+  retrieval + probability machinery is sound.
+- On the **real title-only corpus** (73 scraped precedents: 56 clean approvals, 17
+  amended; base rate 0.77) it shows **AUC ~0.54, ~0 lift** — i.e. *no predictive
+  signal*. This is a real finding, not a bug: **agenda titles don't contain the
+  features that predict contention** (height, units, affordable share, opposition
+  live in the staff-report PDF, not the title). Toronto also approves nearly
+  everything that reaches a decision, so the predictable target is clean approval
+  vs council-imposed amendment.
+
+**The path to real predictive lift** is richer features: embed the staff-report
+description (parse the `backgroundfile` PDF) or join the Development Applications
+open dataset, instead of the agenda title alone. The retrieval/probability/lever
+machinery stays the same.
+
+`per_councillor` and `levers` have no counterfactual ground truth and are
+face-validity checks only.
 
 ## Run it
 
