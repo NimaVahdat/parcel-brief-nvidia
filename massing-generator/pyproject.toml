@@ -8,6 +8,11 @@ dependencies = [
     "anthropic>=0.40",
     "plotly>=5.20",
     "pyvista>=0.43",
+    # pyvista's standalone HTML export goes through a trame server
+    "trame>=3.0",
+    "trame-vtk>=2.8",
+    "trame-vuetify>=2.7",
+    "nest-asyncio2>=1.7",
     "pillow>=10.0",
     "numpy>=1.26",
     "fastapi>=0.110",
