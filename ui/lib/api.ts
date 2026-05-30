@@ -9,6 +9,8 @@ export type ZoningEnvelope = {
   permitted_uses: string[];
   footprint_polygon: [number, number][];
   parking_minimum: number | null;
+  bylaw_reference?: string | null;
+  missing_middle?: string | null;
 };
 
 export type SiteConstraints = {
@@ -19,6 +21,7 @@ export type SiteConstraints = {
   conservation_overlays: string[];
   transit_distance_m: number;
   easements: string[];
+  fire_station_distance_m?: number | null;
 };
 
 export type Massing = {
@@ -70,6 +73,8 @@ export type OppositionForecast = {
 export type GoNoGo = {
   recommendation: "buy" | "pass" | "conditional";
   confidence: number;
+  developability_score?: number;
+  score_breakdown?: Record<string, number>;
   dominant_sensitivities: string[];
   rationale: string;
 };
