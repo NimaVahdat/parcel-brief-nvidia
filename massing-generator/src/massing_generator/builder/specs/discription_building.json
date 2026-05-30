@@ -1,0 +1,335 @@
+{
+  "project_name": "Toronto Mixed-Use Mid-Rise Tower",
+  "zoning_category": "CR3.0(c2.0;r3.0)",
+  "lot_details": {
+    "lot_area_sqm": 1200.0,
+    "lot_frontage_m": 30.0,
+    "lot_depth_m": 40.0,
+    "orientation_deg": 0
+  },
+  "building_specifications": {
+    "building_type": "Mixed-Use Tower",
+    "architectural_style": "Contemporary High-Rise",
+    "number_of_storeys": 15,
+    "building_height_m": 52.0,
+    "gross_floor_area_sqm": 14400.0,
+    "lot_coverage_percent": 75.0,
+    "floor_space_index": 12.0,
+    "podium_storeys": 3,
+    "tower_storeys": 12,
+    "mechanical_penthouse_storeys": 1
+  },
+  "setbacks_m": {
+    "front_yard": 3.0,
+    "rear_yard": 7.5,
+    "side_yard_east": 0.0,
+    "side_yard_west": 3.0,
+    "tower_stepback_front_at_storey_4": 5.0,
+    "tower_stepback_rear_at_storey_4": 5.0,
+    "tower_stepback_side_east_at_storey_4": 3.0,
+    "tower_stepback_side_west_at_storey_4": 3.0,
+    "upper_stepback_front_at_storey_12": 2.5,
+    "upper_stepback_rear_at_storey_12": 2.5
+  },
+  "massing": {
+    "footprint_shape": "rectangular",
+    "podium": {
+      "width_m": 30.0,
+      "depth_m": 40.0,
+      "height_m": 13.5,
+      "storeys": 3
+    },
+    "tower": {
+      "width_m": 20.0,
+      "depth_m": 28.0,
+      "offset_x_m": 5.0,
+      "offset_y_m": 5.0,
+      "height_m": 36.0,
+      "storeys": 12
+    },
+    "mechanical_penthouse": {
+      "width_m": 12.0,
+      "depth_m": 16.0,
+      "offset_x_m": 4.0,
+      "offset_y_m": 6.0,
+      "height_m": 4.5
+    }
+  },
+  "vertical_zones": [
+    {
+      "id": "podium",
+      "storeys": [1, 2, 3],
+      "use": ["retail", "office", "office"],
+      "facade_system": "punched_window",
+      "wall_material": "granite_panel",
+      "wall_color": "#3a3a3a",
+      "accent_color": "#c0a060",
+      "window_type": "curtain_wall_unit",
+      "window_color": "#1a2a3a",
+      "spandrel_color": "#2a2a2a"
+    },
+    {
+      "id": "tower_low",
+      "storeys": [4, 5, 6, 7, 8],
+      "use": "residential",
+      "facade_system": "curtain_wall",
+      "wall_material": "glass_panel",
+      "wall_color": "#b0c8d8",
+      "spandrel_color": "#2a3a4a",
+      "balcony_present": true,
+      "balcony_depth_m": 1.5
+    },
+    {
+      "id": "tower_mid",
+      "storeys": [9, 10, 11],
+      "use": "residential",
+      "facade_system": "curtain_wall",
+      "wall_material": "glass_panel",
+      "wall_color": "#a0b8cc",
+      "spandrel_color": "#1e2e3e",
+      "balcony_present": true,
+      "balcony_depth_m": 1.8
+    },
+    {
+      "id": "tower_top",
+      "storeys": [12, 13, 14, 15],
+      "use": "residential_penthouse",
+      "facade_system": "curtain_wall",
+      "wall_material": "glass_panel",
+      "wall_color": "#c0d8ec",
+      "spandrel_color": "#1a2a3a",
+      "balcony_present": true,
+      "balcony_depth_m": 2.2,
+      "corner_glazing": true
+    }
+  ],
+  "storeys": [
+    { "level": 1,  "height_m": 5.5,  "floor_to_floor_m": 5.5,  "use": "retail",                "zone": "podium" },
+    { "level": 2,  "height_m": 4.0,  "floor_to_floor_m": 4.0,  "use": "office",                "zone": "podium" },
+    { "level": 3,  "height_m": 4.0,  "floor_to_floor_m": 4.0,  "use": "office",                "zone": "podium" },
+    { "level": 4,  "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_low",  "stepback": true },
+    { "level": 5,  "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_low" },
+    { "level": 6,  "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_low" },
+    { "level": 7,  "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_low" },
+    { "level": 8,  "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_low" },
+    { "level": 9,  "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_mid" },
+    { "level": 10, "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_mid" },
+    { "level": 11, "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential",           "zone": "tower_mid" },
+    { "level": 12, "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential_penthouse", "zone": "tower_top", "stepback": true },
+    { "level": 13, "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential_penthouse", "zone": "tower_top" },
+    { "level": 14, "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential_penthouse", "zone": "tower_top" },
+    { "level": 15, "height_m": 3.2,  "floor_to_floor_m": 3.2,  "use": "residential_penthouse", "zone": "tower_top" },
+    { "level": 16, "height_m": 4.5,  "floor_to_floor_m": 4.5,  "use": "mechanical",            "zone": "mechanical_penthouse" }
+  ],
+  "facade_grid": {
+    "podium_bay_width_m": 5.0,
+    "tower_bay_width_m": 3.2,
+    "curtain_wall_mullion_depth_m": 0.15,
+    "curtain_wall_mullion_color": "#1a1a2a",
+    "vision_glass_tint": "blue_grey",
+    "vision_glass_reflectance": 0.18,
+    "spandrel_glass_height_m": 1.0,
+    "parapet_height_m": 1.2
+  },
+  "facades": {
+    "front": {
+      "podium_retail_openings": [
+        { "storey": 1, "position_frac": 0.1,  "width_m": 4.0, "height_m": 4.5, "type": "storefront_glass" },
+        { "storey": 1, "position_frac": 0.3,  "width_m": 4.0, "height_m": 4.5, "type": "storefront_glass" },
+        { "storey": 1, "position_frac": 0.5,  "width_m": 3.0, "height_m": 4.5, "type": "lobby_entrance" },
+        { "storey": 1, "position_frac": 0.7,  "width_m": 4.0, "height_m": 4.5, "type": "storefront_glass" },
+        { "storey": 1, "position_frac": 0.9,  "width_m": 4.0, "height_m": 4.5, "type": "storefront_glass" }
+      ],
+      "lobby_entrance": {
+        "position_frac": 0.5,
+        "width_m": 5.0,
+        "height_m": 5.0,
+        "canopy_depth_m": 2.0,
+        "canopy_material": "steel_glass",
+        "door_type": "automatic_sliding",
+        "door_color": "#c0a060"
+      },
+      "tower_balconies": {
+        "storeys": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        "pattern": "alternating",
+        "positions_frac": [0.2, 0.5, 0.8],
+        "width_m": 2.4,
+        "depth_m": 1.5,
+        "railing_type": "glass_panel",
+        "railing_color": "#80a0c0"
+      }
+    },
+    "rear": {
+      "podium_windows": [
+        { "storey": 2, "position_frac": 0.25, "width_m": 2.0, "height_m": 2.5, "type": "fixed" },
+        { "storey": 2, "position_frac": 0.5,  "width_m": 2.0, "height_m": 2.5, "type": "fixed" },
+        { "storey": 2, "position_frac": 0.75, "width_m": 2.0, "height_m": 2.5, "type": "fixed" },
+        { "storey": 3, "position_frac": 0.25, "width_m": 2.0, "height_m": 2.5, "type": "fixed" },
+        { "storey": 3, "position_frac": 0.5,  "width_m": 2.0, "height_m": 2.5, "type": "fixed" },
+        { "storey": 3, "position_frac": 0.75, "width_m": 2.0, "height_m": 2.5, "type": "fixed" }
+      ],
+      "tower_balconies": {
+        "storeys": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        "pattern": "continuous",
+        "positions_frac": [0.25, 0.75],
+        "width_m": 3.0,
+        "depth_m": 1.8,
+        "railing_type": "glass_panel",
+        "railing_color": "#80a0c0"
+      }
+    },
+    "east": {
+      "windows": [
+        { "storey": 1, "position_frac": 0.5, "width_m": 1.5, "height_m": 4.0, "type": "storefront_glass" }
+      ],
+      "tower_windows": {
+        "storeys": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        "positions_frac": [0.3, 0.7],
+        "width_m": 1.8,
+        "height_m": 2.4,
+        "type": "curtain_wall_unit"
+      }
+    },
+    "west": {
+      "windows": [],
+      "tower_windows": {
+        "storeys": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+        "positions_frac": [0.3, 0.7],
+        "width_m": 1.8,
+        "height_m": 2.4,
+        "type": "curtain_wall_unit"
+      }
+    }
+  },
+  "roof": {
+    "type": "flat",
+    "material": "tpo_membrane",
+    "color": "#808080",
+    "green_roof_present": true,
+    "green_roof_area_sqm": 180.0,
+    "green_roof_zone": "podium_top",
+    "parapet": {
+      "height_m": 1.2,
+      "material": "metal_coping",
+      "color": "#2a3a4a"
+    },
+    "mechanical_penthouse": {
+      "present": true,
+      "width_m": 12.0,
+      "depth_m": 16.0,
+      "height_m": 4.5,
+      "offset_x_m": 4.0,
+      "offset_y_m": 6.0,
+      "cladding": "metal_panel",
+      "color": "#3a4a5a",
+      "louver_present": true,
+      "louver_color": "#4a5a6a"
+    },
+    "rooftop_equipment": [
+      { "type": "cooling_tower",  "count": 2, "height_m": 2.5, "width_m": 3.0 },
+      { "type": "exhaust_stack",  "count": 4, "height_m": 1.5, "diameter_m": 0.3 },
+      { "type": "hvac_unit",      "count": 3, "height_m": 1.8, "width_m": 2.0 }
+    ]
+  },
+  "structural_system": {
+    "type": "concrete_shear_core",
+    "core_position": "central",
+    "core_width_m": 8.0,
+    "core_depth_m": 10.0,
+    "column_grid_x_m": 5.0,
+    "column_grid_y_m": 7.0,
+    "floor_system": "flat_slab",
+    "slab_thickness_mm": 250,
+    "foundation": "mat_slab_with_piles",
+    "pile_depth_m": 18.0
+  },
+  "vertical_circulation": {
+    "elevators": [
+      { "id": "elevator_1", "type": "passenger", "capacity_kg": 1000, "speed_mps": 2.5 },
+      { "id": "elevator_2", "type": "passenger", "capacity_kg": 1000, "speed_mps": 2.5 },
+      { "id": "elevator_3", "type": "service",   "capacity_kg": 2000, "speed_mps": 1.5 }
+    ],
+    "stairs": [
+      { "id": "stair_1", "type": "exit", "location": "east_core" },
+      { "id": "stair_2", "type": "exit", "location": "west_core" }
+    ]
+  },
+  "underground_parking": {
+    "levels": 2,
+    "level_height_m": 3.0,
+    "total_spaces": 48,
+    "accessible_spaces": 4,
+    "ev_charging_spaces": 8,
+    "bicycle_spaces": 30,
+    "ramp_location": "west_side",
+    "ramp_width_m": 6.0
+  },
+  "lobby": {
+    "width_m": 5.0,
+    "depth_m": 12.0,
+    "height_m": 5.5,
+    "floor_material": "polished_granite",
+    "floor_color": "#e8e0d0",
+    "wall_material": "marble",
+    "wall_color": "#f0ece4",
+    "ceiling_type": "exposed_concrete",
+    "concierge_desk": true,
+    "mailroom_present": true,
+    "parcel_storage_present": true
+  },
+  "site": {
+    "driveway": {
+      "present": true,
+      "side": "west",
+      "width_m": 6.0,
+      "material": "asphalt",
+      "color": "#4a4a4a",
+      "curb_cut_width_m": 8.0
+    },
+    "walkway": {
+      "present": true,
+      "width_m": 2.5,
+      "material": "concrete_paver",
+      "color": "#c0b8b0"
+    },
+    "at_grade_amenity_deck": {
+      "present": true,
+      "location": "podium_roof",
+      "area_sqm": 400.0,
+      "features": ["seating_area", "planters", "green_roof", "bbq_stations"]
+    },
+    "trees": [
+      { "x_m": 3.0,  "y_m": 2.0,  "canopy_r_m": 2.5, "height_m": 8.0,  "species": "red_maple" },
+      { "x_m": 10.0, "y_m": 2.0,  "canopy_r_m": 2.5, "height_m": 8.0,  "species": "red_maple" },
+      { "x_m": 20.0, "y_m": 2.0,  "canopy_r_m": 2.5, "height_m": 8.0,  "species": "red_maple" },
+      { "x_m": 27.0, "y_m": 2.0,  "canopy_r_m": 2.5, "height_m": 8.0,  "species": "red_maple" },
+      { "x_m": 5.0,  "y_m": 37.0, "canopy_r_m": 3.0, "height_m": 10.0, "species": "silver_linden" }
+    ],
+    "landscaping": {
+      "front_yard_total_percent": 20.0,
+      "front_yard_soft_percent": 40.0,
+      "grass_color": "#7fb069",
+      "planted_boulevard": true,
+      "street_furniture": ["benches", "bike_racks", "waste_bins"]
+    }
+  },
+  "sustainability": {
+    "tier": "toronto_green_standard_tier_2",
+    "energy_use_intensity_kwh_per_sqm": 120.0,
+    "ev_ready_percent": 20,
+    "green_roof_area_sqm": 180.0,
+    "solar_pv_present": false,
+    "grey_water_recycling": true,
+    "rainwater_harvesting": true,
+    "bike_storage_spaces": 30,
+    "end_of_trip_facilities": true
+  },
+  "unit_mix": {
+    "total_residential_units": 96,
+    "studio": { "count": 20, "avg_area_sqm": 38 },
+    "one_bedroom": { "count": 40, "avg_area_sqm": 55 },
+    "two_bedroom": { "count": 28, "avg_area_sqm": 80 },
+    "three_bedroom": { "count": 8,  "avg_area_sqm": 110 },
+    "penthouse": { "count": 4,  "avg_area_sqm": 160 }
+  }
+}

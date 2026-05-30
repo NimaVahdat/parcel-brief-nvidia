@@ -1,0 +1,15 @@
+{
+  "parcel_id": "43.6770_-79.3880",
+  "max_height_m": 32.0,
+  "max_fsi": 3.0,
+  "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+  "permitted_uses": ["residential", "retail"],
+  "footprint_polygon": [
+    [-79.38812, 43.67691],
+    [-79.38812, 43.67709],
+    [-79.38788, 43.67709],
+    [-79.38788, 43.67691],
+    [-79.38812, 43.67691]
+  ],
+  "parking_minimum": 0
+}

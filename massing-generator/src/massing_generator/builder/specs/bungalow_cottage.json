@@ -1,0 +1,81 @@
+{
+  "project_name": "Single-Storey Gable Cottage",
+  "zoning_category": "R1",
+  "lot_details": {
+    "lot_area_sqm": 420.0,
+    "lot_frontage_m": 14.0,
+    "lot_depth_m": 30.0,
+    "orientation_deg": 0
+  },
+  "building_specifications": {
+    "building_type": "Bungalow",
+    "architectural_style": "Cottage",
+    "number_of_storeys": 1,
+    "building_height_m": 4.2,
+    "gross_floor_area_sqm": 120.0,
+    "lot_coverage_percent": 32.0
+  },
+  "setbacks_m": {
+    "front_yard": 5.5,
+    "rear_yard": 8.0,
+    "side_yard_east": 1.8,
+    "side_yard_west": 1.8
+  },
+  "exterior": {
+    "foundation_height_m": 0.4,
+    "wall_material": "stucco",
+    "accent_material": "wood"
+  },
+  "massing": {
+    "footprint_shape": "rectangular"
+  },
+  "facades": {
+    "front": {
+      "door": { "position_frac": 0.5, "width_m": 1.0, "height_m": 2.1 },
+      "porch": {
+        "present": true,
+        "depth_m": 1.6,
+        "width_frac": 0.5,
+        "height_m": 2.5,
+        "columns": 2
+      },
+      "windows": [
+        { "storey": 1, "position_frac": 0.22, "width_m": 1.4, "height_m": 1.4, "sill_m": 0.9 },
+        { "storey": 1, "position_frac": 0.78, "width_m": 1.4, "height_m": 1.4, "sill_m": 0.9 }
+      ]
+    },
+    "rear": {
+      "windows": [
+        { "storey": 1, "position_frac": 0.3, "width_m": 1.6, "height_m": 1.5, "sill_m": 0.8 },
+        { "storey": 1, "position_frac": 0.7, "width_m": 1.0, "height_m": 1.3, "sill_m": 1.0 }
+      ]
+    },
+    "west": {
+      "windows": [
+        { "storey": 1, "position_frac": 0.5, "width_m": 0.9, "height_m": 1.1, "sill_m": 1.1 }
+      ]
+    },
+    "east": {
+      "windows": [
+        { "storey": 1, "position_frac": 0.5, "width_m": 0.9, "height_m": 1.1, "sill_m": 1.1 }
+      ]
+    }
+  },
+  "roof": {
+    "type": "gable",
+    "pitch_deg": 38,
+    "overhang_m": 0.6,
+    "material": "cedar_shingle",
+    "color": "#6b5a44",
+    "chimney": { "present": true, "side": "east", "width_m": 0.8, "height_above_ridge_m": 1.0 }
+  },
+  "site": {
+    "driveway": { "present": true, "side": "east", "width_m": 2.8, "material": "gravel", "color": "#8a8278" },
+    "walkway": { "present": true, "width_m": 1.0, "material": "stone", "color": "#b8b0a8" },
+    "trees": [
+      { "x_m": 2.5,  "y_m": 4.0,  "canopy_r_m": 1.8, "height_m": 5.0, "species": "birch" },
+      { "x_m": 11.0, "y_m": 5.0,  "canopy_r_m": 2.0, "height_m": 6.0, "species": "maple" },
+      { "x_m": 7.0,  "y_m": 26.0, "canopy_r_m": 2.4, "height_m": 7.0, "species": "spruce" }
+    ]
+  }
+}
