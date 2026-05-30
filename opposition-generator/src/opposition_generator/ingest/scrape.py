@@ -182,6 +182,18 @@ def _meeting_comm_docs(page, meeting_id: int, *, dev_only: bool) -> list[CommDoc
     return docs
 
 
+def _download(http: httpx.Client, url: str, dest: Path) -> bool:
+    """Download a PDF via plain HTTP (legdocs is not Akamai-protected)."""
+    try:
+        resp = http.get(url)
+        if resp.status_code == 200 and "pdf" in resp.headers.get("content-type", "").lower():
+            dest.write_bytes(resp.content)
+            return True
+    except httpx.HTTPError:
+        pass
+    return False
+
+
 def _item_comm_urls(page, item_ref: str) -> list[str]:
     """Read an agenda-item page and extract its communication-file PDF URLs."""
     try:
