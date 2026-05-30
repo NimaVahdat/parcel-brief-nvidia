@@ -65,6 +65,17 @@ def test_aggregate_groups_ranked_by_frequency() -> None:
     assert groups[0] == "Friends of Trinity-Bellwoods"
 
 
+def test_aggregate_groups_filters_corporate_noise() -> None:
+    retrieved = [
+        _retrieved([], ["Liberty Village Residents Association"]),
+        _retrieved([], ["939923 Ontario Limited"]),
+        _retrieved([], ["Allied Properties REIT"]),
+        _retrieved([], ["Toronto and East York Community Council"]),
+    ]
+    groups = aggregate_groups(retrieved)
+    assert groups == ["Liberty Village Residents Association"]
+
+
 def test_letter_count_scales_with_sensitivity() -> None:
     retrieved = [_retrieved(["shadow"], []) for _ in range(5)]
     tall_no_affordable = ProjectDescription(

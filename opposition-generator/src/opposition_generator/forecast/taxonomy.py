@@ -114,6 +114,26 @@ def mitigation_for(concern: str) -> str:
     return CONCERN_MITIGATIONS.get(concern, f"address resident concerns about {concern}")
 
 
+# Names that are applicants/owners/corporations or the committee itself — not
+# community opposition groups. Deputation text mentions these constantly, and the
+# tagger sometimes captures them, so filter them out of `organized_groups`.
+import re as _re
+
+_NOISE_GROUP_RE = _re.compile(
+    r"\b(inc|incorporated|ltd|limited|llc|llp|l\.p\.|reit|corp|corporation|"
+    r"holdings|properties|developments?|realty|gp\s+inc|bousfields|"
+    r"architects?|planning\s+partnership|consultants?)\b"
+    r"|\d{5,}\s*ontario|^\s*\d{5,}"
+    r"|community\s+council|city\s+council|planning\s+and\s+housing",
+    _re.I,
+)
+
+
+def is_noise_group(name: str) -> bool:
+    """True if a 'group' name is really an applicant/corporation/committee."""
+    return bool(_NOISE_GROUP_RE.search(name))
+
+
 def canonical_group(name: str) -> str:
     """Light normalization of an organizing-group name for dedup/counting.
 
