@@ -76,17 +76,18 @@ def compute_levers(
     k: int,
 ) -> list[Lever]:
     """Counterfactual retrieval: each lever re-queries with a perturbed application."""
-    levers: list[Lever] = []
+    scored: list[Lever] = []
     for label, mutate, extra in _LEVERS:
         new_app = mutate(app)
         query = application_to_text(new_app, extra=extra)
         retr = retrieve(query, k, candidates=candidates)
         new_prob, _, _ = approval_probability(retr)
-        delta = round(new_prob - base_prob, 3)
-        levers.append(Lever(change=label, delta_probability=delta))
-    # surface the most impactful first
-    levers.sort(key=lambda x: -x.delta_probability)
-    return levers
+        scored.append(Lever(change=label, delta_probability=round(new_prob - base_prob, 3)))
+    scored.sort(key=lambda x: -x.delta_probability)
+    # levers are *recommended* changes — surface those that help; if none clearly
+    # help (already-high base prob), keep the best one rather than return nothing.
+    helpful = [l for l in scored if l.delta_probability > 0]
+    return helpful or scored[:1]
 
 
 def per_councillor_estimates(
