@@ -51,7 +51,9 @@ def ingest_corpus(raw_dir: Path | None = None, *, limit: int | None = None) -> i
             text = extract_text(pdf)
             if not text or len(text) < 80:
                 continue  # skip empty / unextractable
-            m = meta.get(pdf.stem, {})
+            # raw filename is "{year}-{committee}-communicationfile-{id}"; the
+            # sidecar is keyed by the bare "communicationfile-{id}".
+            m = meta.get(pdf.stem.split("-", 2)[-1], {})
             tags = tag_deputation(text, context=m.get("agenda_item_title"))
             if not tags.get("neighborhood"):
                 continue  # neighborhood is required for retrieval filtering
