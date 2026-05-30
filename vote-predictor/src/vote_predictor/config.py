@@ -257,6 +257,35 @@ REASONING_MAX_TOKENS = int(os.environ.get("VOTE_PREDICTOR_LLM_MAX_TOKENS", "4096
 #: CI and for running the demo without a model server.
 USE_LLM = os.environ.get("VOTE_PREDICTOR_USE_LLM", "1") not in ("0", "false", "False")
 
+# --- agentic verification layer (runs AFTER the deterministic Skeptic gate) -------
+
+#: When True, claims that pass the deterministic Skeptic gate are additionally cross-examined
+#: by three independent LLM verifiers (Evidence-Verifier, Skeptic-Critic, Precedent-Checker)
+#: whose consensus can only DOWNGRADE or ABSTAIN a claim, never upgrade it past the gate (see
+#: ``verify.py``). Active only when the LLM Reasoner actually ran (``mode == "panel"``); in the
+#: deterministic-fallback mode there is no model to verify with, so the gate stands alone. Set
+#: ``VOTE_PREDICTOR_VERIFY=0`` to run the panel without the verification layer (the clean
+#: ablation the eval uses to show what verification costs and catches).
+VERIFY_CLAIMS = os.environ.get("VOTE_PREDICTOR_VERIFY", "1") not in ("0", "false", "False")
+
+#: Max verifier chunks issued concurrently. The Evidence-Verifier and Skeptic-Critic run over
+#: the grounded councillors in the same batches as the Reasoner; running the chunks at once
+#: only changes the wall-clock, never the result. Cap matches the Ollama server's parallelism.
+VERIFIER_MAX_PARALLEL = int(os.environ.get("VOTE_PREDICTOR_VERIFIER_PARALLEL", "4"))
+
+#: How far a singly-dissented claim is pulled toward its prior (0 = no move, 1 = full abstain).
+#: One verifier withholding support widens the claim's uncertainty toward the grounded prior
+#: rather than flipping it outright; 0.5 is the midpoint between the gate's value and the prior.
+VERIFIER_DOWNGRADE_PULL = float(os.environ.get("VOTE_PREDICTOR_VERIFIER_DOWNGRADE_PULL", "0.5"))
+
+#: Number of verifiers that must withhold support before the consensus ABSTAINS the claim to
+#: its prior. With the three-verifier panel, 2 means "a majority could not agree it is
+#: supported"; below this a single dissent only downgrades (widens uncertainty). Floored at 1 so
+#: a degenerate 0/negative env value cannot make every claim abstain regardless of the votes.
+VERIFIER_ABSTAIN_MIN_DISSENT = max(
+    1, int(os.environ.get("VOTE_PREDICTOR_VERIFIER_ABSTAIN_DISSENT", "2"))
+)
+
 # --- local embeddings (similar-case retrieval) -----------------------------------
 
 #: Embedding endpoint. nomic-embed-text is served by the same Ollama as the reasoning model,

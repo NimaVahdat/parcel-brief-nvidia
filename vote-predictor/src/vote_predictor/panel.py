@@ -53,16 +53,24 @@ class PanelOutput:
     """The panel's result for one prediction.
 
     Attributes:
-        per_councillor (dict[str, float]): Shipped (post-Skeptic) Yes-probabilities.
-        traces (list[CouncillorReasoning]): Per-councillor reasoning + Skeptic verdicts.
+        per_councillor (dict[str, float]): Shipped (post-Skeptic, post-verification) Yes-probs.
+        traces (list[CouncillorReasoning]): Per-councillor reasoning + Skeptic + verifier verdicts.
         mode (str): ``panel`` (LLM Reasoner) or ``fallback`` (deterministic Reasoner).
         precedent_ids (list[str]): Application ids retrieved as precedent.
+        verification_enabled (bool): Whether the agentic verification layer ran this prediction.
+        n_verified (int): Gate-passed claims the verifiers confirmed unchanged.
+        n_verifier_downgraded (int): Gate-passed claims the verifiers pulled toward the prior.
+        n_verifier_abstained (int): Gate-passed claims the verifiers abstained to the prior.
     """
 
     per_councillor: dict[str, float]
     traces: list[CouncillorReasoning]
     mode: str
     precedent_ids: list[str] = field(default_factory=list)
+    verification_enabled: bool = False
+    n_verified: int = 0
+    n_verifier_downgraded: int = 0
+    n_verifier_abstained: int = 0
 
 
 def _clamp01(value: float) -> float:
@@ -291,8 +299,14 @@ def run_panel(
     similar: list[dict],
     ward: str | None,
     use_llm: bool,
+    use_verify: bool = False,
 ) -> PanelOutput:
-    """Run Reasoner -> Skeptic for every councillor and return shipped probabilities + trace.
+    """Run Reasoner -> Skeptic (-> verifiers) for every councillor; return probabilities + trace.
+
+    The deterministic Skeptic gate runs first and is the hard floor. When ``use_verify`` is set
+    and the LLM Reasoner actually ran (``mode == "panel"``), gate-passed claims are then
+    cross-examined by the three-verifier consensus in ``verify.py``, which can only downgrade or
+    abstain them — never upgrade them past the gate.
 
     Args:
         application (dict): The application fields.
@@ -303,10 +317,12 @@ def run_panel(
         similar (list[dict]): Retrieved precedent cases (each with ``application_id``).
         ward (str | None): Ward councillor id, if known.
         use_llm (bool): Whether to attempt the LLM Reasoner before degrading.
+        use_verify (bool): Whether to run the agentic verification layer on gate-passed claims
+            (only active when the LLM Reasoner ran; a no-op in the deterministic-fallback mode).
 
     Returns:
-        PanelOutput: Post-Skeptic per-councillor probabilities, the per-councillor traces,
-        the mode, and the precedent ids.
+        PanelOutput: Post-gate, post-verification per-councillor probabilities, the per-councillor
+        traces, the mode, the precedent ids, and the verification-layer counts.
     """
     global_logit = retrieval.global_logit(profiles)
     valid_precedent_ids = {str(c["application_id"]) for c in similar if c.get("application_id")}
@@ -351,22 +367,75 @@ def run_panel(
         )
 
     traces: list[CouncillorReasoning] = []
-    per: dict[str, float] = {}
     for cid in councillors:
-        reasoning = skeptic_review(
-            cid,
-            claims.get(cid, {}),
-            profiles.get(cid),
-            valid_precedent_ids,
-            precedent_detail,
-            staff_rec,
-            global_logit,
+        traces.append(
+            skeptic_review(
+                cid,
+                claims.get(cid, {}),
+                profiles.get(cid),
+                valid_precedent_ids,
+                precedent_detail,
+                staff_rec,
+                global_logit,
+            )
         )
-        traces.append(reasoning)
-        per[cid] = reasoning.p_yes
+
+    # The deterministic gate above is the hard floor. Only when the LLM Reasoner actually ran do
+    # we cross-examine its survivors with the three-verifier consensus; the verifiers can pull a
+    # claim toward its prior or abstain it, but the consensus clamp forbids any upgrade.
+    verification_enabled = use_verify and mode == "panel"
+    counts = {"confirmed": 0, "downgraded": 0, "abstained": 0}
+    if verification_enabled:
+        from vote_predictor import verify
+
+        # The verification layer is additive and must never break the contract. Any unexpected
+        # failure inside it (transport, a malformed trace, a pool error) degrades to "the
+        # deterministic gate result stands" — never worse than having no verification at all.
+        try:
+            verified = verify.verify_panel(
+                gate_traces=traces,
+                profiles=profiles,
+                staff_rec=staff_rec,
+                application_summary=retrieval.case_summary(application),
+            )
+        except Exception:  # noqa: BLE001 - verification is best-effort; the gate is the floor
+            verified = {}
+        traces = [_apply_verification(t, verified.get(t.councillor_id)) for t in traces]
+        for outcome in verified.values():
+            counts[outcome.record.verdict] = counts.get(outcome.record.verdict, 0) + 1
+
+    per = {t.councillor_id: t.p_yes for t in traces}
     return PanelOutput(
         per_councillor=per,
         traces=traces,
         mode=mode,
         precedent_ids=sorted(valid_precedent_ids),
+        verification_enabled=verification_enabled,
+        n_verified=counts["confirmed"],
+        n_verifier_downgraded=counts["downgraded"],
+        n_verifier_abstained=counts["abstained"],
+    )
+
+
+def _apply_verification(reasoning: CouncillorReasoning, outcome) -> CouncillorReasoning:
+    """Fold a verification outcome into a gate trace, producing the shipped per-councillor record.
+
+    Args:
+        reasoning (CouncillorReasoning): The deterministic gate's trace for one councillor.
+        outcome (verify.VerifiedClaim | None): The verification resolution, or None when the
+            claim was not verified (gate-abstained, or the verifier did not run for it).
+
+    Returns:
+        CouncillorReasoning: The gate trace unchanged when ``outcome`` is None, else an updated
+        copy carrying the (only-ever-weaker) probability, grounding, basis, and verification trace.
+    """
+    if outcome is None:
+        return reasoning
+    return reasoning.model_copy(
+        update={
+            "p_yes": outcome.p_yes,
+            "grounded": outcome.grounded,
+            "basis": outcome.basis,
+            "verification": outcome.record,
+        }
     )

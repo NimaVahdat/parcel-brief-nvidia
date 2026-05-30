@@ -87,6 +87,12 @@ def coverage() -> None:
 def evaluate(
     use_llm: bool = typer.Option(False, help="Score the LLM panel instead of the fallback."),
     ablations: bool = typer.Option(False, help="Also run the no-grounding LLM ablation arm."),
+    verify: bool = typer.Option(
+        True, help="Run the agentic verification layer on the LLM panel (inert in fallback)."
+    ),
+    verify_ablation: bool = typer.Option(
+        False, help="Also run a verification-off panel arm to isolate the layer's effect."
+    ),
     limit: int = typer.Option(0, help="Cap test applications (0 = all)."),
 ) -> None:
     """Backtest the panel on a held-out time split against baselines and ablations.
@@ -94,6 +100,8 @@ def evaluate(
     Args:
         use_llm (bool): When True, evaluate the LLM panel (needs a running endpoint).
         ablations (bool): When True, also run the no-grounding ablation arm.
+        verify (bool): When True (and ``use_llm``), run the verification layer on the panel.
+        verify_ablation (bool): When True, add a verification-off ``panel_unverified`` arm.
         limit (int): Optional cap on the number of test applications.
 
     Returns:
@@ -101,7 +109,36 @@ def evaluate(
     """
     from vote_predictor.eval import evaluate as run_eval
 
-    run_eval(use_llm=use_llm, limit=limit or None, ablations=ablations)
+    run_eval(
+        use_llm=use_llm,
+        limit=limit or None,
+        ablations=ablations,
+        verify=verify,
+        verify_ablation=verify_ablation,
+    )
+
+
+@app.command("verify-stability")
+def verify_stability(
+    repeats: int = typer.Option(3, help="Times to re-run the verification layer per item."),
+    limit: int = typer.Option(20, help="Cap test applications probed (needs a running endpoint)."),
+) -> None:
+    """Measure verifier nondeterminism: re-verify fixed gate claims and report the flip rate.
+
+    At temperature 0 the verifier verdicts should be identical across repeats; a non-zero flip
+    rate is a determinism risk a CI gate should block on.
+
+    Args:
+        repeats (int): How many times to re-run the verification layer on each item (>= 2).
+        limit (int): Cap on the number of test applications probed.
+
+    Returns:
+        None.
+    """
+    from vote_predictor.eval import measure_verifier_stability
+
+    report = measure_verifier_stability(n_repeats=repeats, limit=limit or None)
+    typer.echo(json.dumps(report, indent=2))
 
 
 @app.command()

@@ -124,7 +124,11 @@ def _no_grounding_scores(
 
 
 def evaluate(
-    use_llm: bool | None = None, limit: int | None = None, ablations: bool = False
+    use_llm: bool | None = None,
+    limit: int | None = None,
+    ablations: bool = False,
+    verify: bool | None = None,
+    verify_ablation: bool = False,
 ) -> dict:
     """Run the backtest and print a report comparing the panel to baselines and ablations.
 
@@ -132,9 +136,14 @@ def evaluate(
         use_llm (bool | None): Force the panel's LLM path on/off; defaults to ``config.USE_LLM``.
         limit (int | None): Cap the number of test applications (useful when the LLM is on).
         ablations (bool): When True, also run the LLM no-grounding ablation arm.
+        verify (bool | None): Force the panel's agentic verification layer on/off; defaults to
+            ``config.VERIFY_CLAIMS``. The layer is inert unless the LLM Reasoner also runs.
+        verify_ablation (bool): When True, add a ``panel_unverified`` arm (verification off) so
+            the report shows directly what the verification layer changes — how much extra
+            abstention it introduces and whether committee-outcome accuracy holds.
 
     Returns:
-        dict: A metrics report keyed by arm, plus ``meta``.
+        dict: A metrics report keyed by arm, plus ``meta`` (including verification-layer stats).
 
     Raises:
         FileNotFoundError: If the processed data is missing (run ingest first).
@@ -169,17 +178,25 @@ def evaluate(
     profiles = retrieval.build_councillor_profiles(votes=train_votes, cache=False)
     global_logit = retrieval.global_logit(profiles)
 
-    panel_agent = VotePredictorAgent(profiles=profiles, use_llm=use_llm)
+    panel_agent = VotePredictorAgent(profiles=profiles, use_llm=use_llm, use_verify=verify)
     fallback_agent = VotePredictorAgent(profiles=profiles, use_llm=False)
+    unverified_agent = (
+        VotePredictorAgent(profiles=profiles, use_llm=use_llm, use_verify=False)
+        if verify_ablation
+        else None
+    )
 
     arms = ["panel", "fallback", "base_rate", "always_yes"]
     if ablations:
         arms.append("no_grounding")
+    if verify_ablation:
+        arms.append("panel_unverified")
     probs: dict[str, list[float]] = {arm: [] for arm in arms}
     items: dict[str, list[dict]] = {arm: [] for arm in arms}
     labels: list[int] = []
     panel_abstained = 0
     panel_graded = 0
+    verifier_counts = {"verified": 0, "downgraded": 0, "abstained": 0}
     # Group once instead of a full-frame boolean scan per test item.
     votes_by_app = dict(tuple(votes.groupby("application_id")))
 
@@ -204,6 +221,9 @@ def evaluate(
         )
         panel_abstained += panel_trace.n_abstained
         panel_graded += len(panel_trace.councillors)
+        verifier_counts["verified"] += panel_trace.n_verified
+        verifier_counts["downgraded"] += panel_trace.n_verifier_downgraded
+        verifier_counts["abstained"] += panel_trace.n_verifier_abstained
         arm_scores: dict[str, dict[str, float]] = {
             "panel": panel_pred.per_councillor,
             "fallback": fallback_agent.predict(
@@ -219,6 +239,10 @@ def evaluate(
             arm_scores["no_grounding"] = _no_grounding_scores(
                 record, councillors, profiles, global_logit
             )
+        if unverified_agent is not None:
+            arm_scores["panel_unverified"] = unverified_agent.predict(
+                record, councillors, staff_rec, ward_norm, precedent_ids=train_ids
+            ).per_councillor
 
         actual_approve = (sum(label_by_c.values()) / len(label_by_c)) > 0.5
         contested = len(set(label_by_c.values())) > 1
@@ -268,12 +292,27 @@ def evaluate(
     report = {arm: _metrics(arm) for arm in arms}
     abstain_rate = round(panel_abstained / panel_graded, 4) if panel_graded else 0.0
     report["panel"]["abstain_rate"] = abstain_rate
+    n_verified_eligible = sum(verifier_counts.values())
+    verifier_downgrade_rate = (
+        round(verifier_counts["downgraded"] / n_verified_eligible, 4)
+        if n_verified_eligible
+        else 0.0
+    )
+    verifier_abstain_rate = (
+        round(verifier_counts["abstained"] / n_verified_eligible, 4) if n_verified_eligible else 0.0
+    )
+    report["panel"]["verifier_downgrade_rate"] = verifier_downgrade_rate
+    report["panel"]["verifier_abstain_rate"] = verifier_abstain_rate
     report["meta"] = {
         "mode": "llm" if panel_agent.use_llm else "fallback",
         "n_test_votes": len(labels),
         "n_test_items": len(items["panel"]),
         "panel_abstain_rate": abstain_rate,
         "ablations": ablations,
+        "verification_enabled": bool(panel_agent.use_verify and panel_agent.use_llm),
+        "n_verifier_eligible": n_verified_eligible,
+        "verifier_downgrade_rate": verifier_downgrade_rate,
+        "verifier_abstain_rate": verifier_abstain_rate,
     }
 
     logger.info(
@@ -298,6 +337,118 @@ def evaluate(
         logger.warning(
             "panel abstained on %.0f%% of councillors — grounding is thin; metrics may track base_rate",
             abstain_rate * 100,
+        )
+    if report["meta"]["verification_enabled"]:
+        logger.info(
+            "verification layer: %d gate-passed claims -> downgrade_rate=%s abstain_rate=%s",
+            n_verified_eligible,
+            verifier_downgrade_rate,
+            verifier_abstain_rate,
+        )
+    return report
+
+
+def measure_verifier_stability(n_repeats: int = 3, limit: int | None = 20) -> dict:
+    """Probe verifier nondeterminism: re-run the verification layer on fixed gate claims K times.
+
+    The verifiers run at temperature 0 with strict-JSON outputs, so at temp 0 their verdicts
+    should be identical across repeats. This re-reasons over the *same* gate claims ``n_repeats``
+    times and reports the fraction of claims whose verification verdict changed — a flip rate of 0
+    is the determinism guarantee a CI gate should assert. The LLM Reasoner runs once per item; only
+    the verifier calls repeat, so this isolates verifier nondeterminism from Reasoner variance.
+
+    Args:
+        n_repeats (int): How many times to re-run the verification layer on each item (>= 2).
+        limit (int | None): Cap the number of test applications probed (the LLM is required).
+
+    Returns:
+        dict: ``{"flip_rate", "n_claims", "n_repeats", "n_flipped", "n_items"}``. ``flip_rate`` is
+        ``n_flipped / n_claims``; an empty probe (no reachable model / no grounded claims) reports
+        a flip rate of 0.0 over 0 claims.
+
+    Raises:
+        FileNotFoundError: If the processed data is missing (run ingest first).
+    """
+    from vote_predictor import verify
+
+    for path in (config.APPLICATIONS_PARQUET, config.VOTES_PARQUET):
+        if not path.exists():
+            raise FileNotFoundError(f"Missing {path}. Run `vote-predictor ingest` first.")
+
+    apps = pd.read_parquet(config.APPLICATIONS_PARQUET)
+    apps["application_date"] = pd.to_datetime(apps["application_date"], errors="coerce")
+    apps = apps.sort_values("application_date", na_position="first")
+    votes = pd.read_parquet(config.VOTES_PARQUET)
+    if "application_id" in votes:
+        votes = votes.dropna(subset=["application_id"])
+    recs = (
+        pd.read_parquet(config.STAFF_RECS_PARQUET).set_index("application_id")["recommendation"]
+        if config.STAFF_RECS_PARQUET.exists()
+        else pd.Series(dtype=str)
+    )
+
+    cut = int(len(apps) * 0.8)
+    train_ids = set(apps.iloc[:cut]["application_id"])
+    test_apps = apps.iloc[cut:]
+    if limit:
+        test_apps = test_apps.head(limit)
+    train_votes = votes[votes["application_id"].isin(train_ids)]
+    profiles = retrieval.build_councillor_profiles(votes=train_votes, cache=False)
+    # use_verify=False so predict_with_trace returns the GATE traces, which we then re-verify.
+    gate_agent = VotePredictorAgent(profiles=profiles, use_llm=True, use_verify=False)
+    votes_by_app = dict(tuple(votes.groupby("application_id")))
+
+    n_claims = 0
+    n_flipped = 0
+    n_items = 0
+    for record in test_apps.to_dict("records"):
+        app_votes = votes_by_app.get(record["application_id"])
+        if app_votes is None or app_votes.empty:
+            continue
+        councillors = [normalize_councillor_id(str(c)) for c in app_votes["councillor_id"]]
+        staff_rec = str(recs.get(record["application_id"], "unknown"))
+        _, gate_trace = gate_agent.predict_with_trace(
+            record, councillors, staff_rec, None, precedent_ids=train_ids
+        )
+        summary = retrieval.case_summary(record)
+        runs = [
+            {
+                cid: outcome.record.verdict
+                for cid, outcome in verify.verify_panel(
+                    gate_trace.councillors, profiles, staff_rec, summary
+                ).items()
+            }
+            for _ in range(max(2, n_repeats))
+        ]
+        base = runs[0]
+        if not base:
+            continue
+        n_items += 1
+        for cid, verdict in base.items():
+            n_claims += 1
+            if any(run.get(cid) != verdict for run in runs[1:]):
+                n_flipped += 1
+
+    flip_rate = round(n_flipped / n_claims, 4) if n_claims else 0.0
+    report = {
+        "flip_rate": flip_rate,
+        "n_claims": n_claims,
+        "n_repeats": max(2, n_repeats),
+        "n_flipped": n_flipped,
+        "n_items": n_items,
+    }
+    logger.info(
+        "verifier stability: flip_rate=%s over %d claims x %d repeats (%d items)",
+        flip_rate,
+        n_claims,
+        report["n_repeats"],
+        n_items,
+    )
+    if flip_rate > 0:
+        logger.warning(
+            "verifier verdicts flipped on %.1f%% of claims at temperature 0 — investigate "
+            "nondeterminism before trusting the verified panel",
+            flip_rate * 100,
         )
     return report
 
