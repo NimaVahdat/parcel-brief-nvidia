@@ -3,14 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import type { BriefResponse } from "@/lib/api";
-import { analyze } from "@/lib/api";
+import { analyzeStream } from "@/lib/api";
 import BriefViewer from "@/components/BriefViewer";
-
-// ─── constants ────────────────────────────────────────────────────────────────
-
-// Progress screen stays visible for at least this long regardless of API speed.
-// This ensures judges always see the full agent animation (mock API returns in ~100ms).
-const MIN_DISPLAY_MS = 4500;
 
 // ─── agent definitions ────────────────────────────────────────────────────────
 
@@ -113,11 +107,17 @@ const AGENTS: Agent[] = [
   },
 ];
 
-// Cumulative ms at which each stage auto-advances during simulated pacing.
-// The last agent (Principal) never auto-advances — it waits for the real API.
-// These run independently of MIN_DISPLAY_MS; they control what the user sees
-// during the minimum wait period.
-const STAGE_CUMULATIVE_MS = [800, 1800, 2800, 3800, 4800, 5800, 6800];
+// Maps a backend graph node to the UI agent id(s) it completes. The first
+// "Site Agent" (parcel) is satisfied once zoning resolves (both read the parcel).
+const NODE_TO_UI: Record<string, string[]> = {
+  zoning: ["parcel", "zoning"],
+  constraints: ["constraints"],
+  massing: ["massing"],
+  proforma: ["proforma"],
+  approvals: ["approval"],
+  community: ["community"],
+  principal: ["principal"],
+};
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -158,62 +158,44 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
   const completedRef = useRef(0);
 
   const [apiResult, setApiResult] = useState<ApiResult | null>(null);
-  const [minTimeMet, setMinTimeMet] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [briefVisible, setBriefVisible] = useState(false);
 
-  const timerIdsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const doneRef = useRef<Set<string>>(new Set());
 
   const setCompleted = useCallback((n: number) => {
     completedRef.current = n;
     setCompletedCount(n);
   }, []);
 
-  // Simulated stage pacing — runs always so the user sees agents advancing
+  // Real progress: stream actual agent completions from the connector.
   useEffect(() => {
-    const ids = STAGE_CUMULATIVE_MS.map((ms, i) =>
-      setTimeout(() => setCompleted(i + 1), ms)
-    );
-    timerIdsRef.current = ids;
-    return () => ids.forEach(clearTimeout);
-  }, [setCompleted]);
+    doneRef.current = new Set();
+    const cleanup = analyzeStream(parcelId, {
+      onAgent: (node) => {
+        (NODE_TO_UI[node] ?? []).forEach((id) => doneRef.current.add(id));
+        setCompleted(AGENTS.filter((a) => doneRef.current.has(a.id)).length);
+      },
+      onBrief: (brief) => {
+        setCompleted(AGENTS.length);
+        setApiResult({ brief, error: null });
+      },
+      onError: (message) => setApiResult({ brief: null, error: message }),
+    });
+    return cleanup;
+  }, [parcelId, setCompleted]);
 
-  // Minimum display gate — brief cannot appear before this fires
+  // Reveal: errors show immediately; a success result flashes the banner then the brief.
   useEffect(() => {
-    const t = setTimeout(() => setMinTimeMet(true), MIN_DISPLAY_MS);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Real API fetch
-  useEffect(() => {
-    analyze(parcelId)
-      .then((brief) => setApiResult({ brief, error: null }))
-      .catch((e) =>
-        setApiResult({ brief: null, error: (e as Error).message })
-      );
-  }, [parcelId]);
-
-  // When BOTH the API result is ready AND the minimum display time has elapsed:
-  // cancel remaining simulated timers, rapidly complete outstanding agents,
-  // show the success banner, then reveal the brief.
-  useEffect(() => {
-    if (!apiResult || !minTimeMet) return;
-
-    // Cancel any pending simulated advances
-    timerIdsRef.current.forEach(clearTimeout);
-
-    const start = completedRef.current;
-    const remaining = AGENTS.length - start;
-    const rapidMs = 180;
-
-    for (let i = 0; i < remaining; i++) {
-      setTimeout(() => setCompleted(start + i + 1), i * rapidMs);
+    if (!apiResult) return;
+    if (apiResult.error) {
+      setBriefVisible(true);
+      return;
     }
-
-    const allDoneAt = remaining * rapidMs + 200;
-    setTimeout(() => setShowSuccess(true), allDoneAt);
-    setTimeout(() => setBriefVisible(true), allDoneAt + 1600);
-  }, [apiResult, minTimeMet, setCompleted]);
+    setShowSuccess(true);
+    const t = setTimeout(() => setBriefVisible(true), 1500);
+    return () => clearTimeout(t);
+  }, [apiResult]);
 
   // ── render ──────────────────────────────────────────────────────────────────
 

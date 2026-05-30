@@ -439,6 +439,10 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
     Math.round(approval.approval_probability * 100),
     1400
   );
+  const score = rec.developability_score ?? 0;
+  const animScore = useCountUp(score, 1500);
+  const scoreColor =
+    score >= 67 ? "text-emerald-600" : score >= 40 ? "text-amber-600" : "text-red-600";
 
   // Recommendation colour scheme
   const recScheme = {
@@ -520,6 +524,13 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
           {/* Headline numbers — animated */}
           <div className="flex shrink-0 gap-8">
             <div className="text-right">
+              <p className={`text-3xl font-bold tabular-nums ${scoreColor}`}>
+                {animScore.toFixed(0)}
+                <span className="text-lg font-semibold text-slate-400">/100</span>
+              </p>
+              <p className="mt-0.5 text-xs text-slate-500">Developability</p>
+            </div>
+            <div className="text-right">
               <p className="text-3xl font-bold tabular-nums text-slate-900">
                 {animConfidence.toFixed(0)}%
               </p>
@@ -549,6 +560,22 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                 className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${scheme.tag}`}
               >
                 {s}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {rec.score_breakdown && Object.keys(rec.score_breakdown).length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className={`text-xs font-semibold ${scheme.body}`}>
+              Score breakdown:
+            </span>
+            {Object.entries(rec.score_breakdown).map(([k, v]) => (
+              <span
+                key={k}
+                className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-0.5 text-xs font-medium capitalize text-slate-600"
+              >
+                {k} {v}
               </span>
             ))}
           </div>
@@ -883,6 +910,9 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                     ? `${env.parking_minimum} spaces`
                     : "No minimum",
               },
+              ...(env.bylaw_reference
+                ? [{ term: "Zoning source", detail: env.bylaw_reference }]
+                : []),
             ].map(({ term, detail }) => (
               <div
                 key={term}
@@ -895,6 +925,18 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
               </div>
             ))}
           </dl>
+
+          {env.missing_middle && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+              <span className="mt-0.5 shrink-0 text-emerald-600">✓</span>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                  Missing-middle eligibility
+                </p>
+                <p className="mt-0.5 text-sm text-emerald-900">{env.missing_middle}</p>
+              </div>
+            </div>
+          )}
         </Card>
 
         <Card
@@ -927,6 +969,17 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                 {con.transit_distance_m} m
               </span>
             </div>
+
+            {con.fire_station_distance_m != null && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-500">
+                  Nearest fire station
+                </span>
+                <span className="text-sm text-slate-800">
+                  {con.fire_station_distance_m} m
+                </span>
+              </div>
+            )}
 
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-500">

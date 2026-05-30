@@ -9,6 +9,8 @@ export type ZoningEnvelope = {
   permitted_uses: string[];
   footprint_polygon: [number, number][];
   parking_minimum: number | null;
+  bylaw_reference?: string | null;
+  missing_middle?: string | null;
 };
 
 export type SiteConstraints = {
@@ -19,6 +21,7 @@ export type SiteConstraints = {
   conservation_overlays: string[];
   transit_distance_m: number;
   easements: string[];
+  fire_station_distance_m?: number | null;
 };
 
 export type Massing = {
@@ -70,6 +73,8 @@ export type OppositionForecast = {
 export type GoNoGo = {
   recommendation: "buy" | "pass" | "conditional";
   confidence: number;
+  developability_score?: number;
+  score_breakdown?: Record<string, number>;
   dominant_sensitivities: string[];
   rationale: string;
 };
@@ -99,4 +104,41 @@ export async function analyze(parcelId: string): Promise<BriefResponse> {
     throw new Error(`Connector returned ${res.status}: ${await res.text()}`);
   }
   return res.json();
+}
+
+export type StreamHandlers = {
+  onAgent: (node: string) => void;
+  onBrief: (brief: BriefResponse, cached: boolean) => void;
+  onError: (message: string) => void;
+};
+
+// Streams real agent-completion events (SSE), then the final brief. Returns a
+// cleanup fn. Cached parcels emit all steps + the brief instantly.
+export function analyzeStream(
+  parcelId: string,
+  handlers: StreamHandlers
+): () => void {
+  const url = `${BASE_URL}/analyze/stream?parcel_id=${encodeURIComponent(parcelId)}`;
+  const es = new EventSource(url);
+  es.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(ev.data);
+      if (data.brief) {
+        handlers.onBrief(data.brief as BriefResponse, Boolean(data.cached));
+        es.close();
+      } else if (data.error) {
+        handlers.onError(String(data.error));
+        es.close();
+      } else if (data.agent) {
+        handlers.onAgent(String(data.agent));
+      }
+    } catch {
+      /* ignore malformed keep-alive frames */
+    }
+  };
+  es.onerror = () => {
+    handlers.onError("Connection to the analysis server was lost.");
+    es.close();
+  };
+  return () => es.close();
 }

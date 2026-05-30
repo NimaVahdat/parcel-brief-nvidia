@@ -38,6 +38,15 @@ def fetch_parcels_cmd() -> None:
     print(f"Downloaded property boundaries ({size / 1e6:.0f} MB)")
 
 
+@app.command("fetch-fire")
+def fetch_fire_cmd() -> None:
+    """Download Fire Facility Locations for emergency-response proximity."""
+    from site_proforma.gis import fetch_fire
+
+    n = fetch_fire()
+    print(f"Downloaded {n} fire stations")
+
+
 @app.command("lookup")
 def lookup_cmd(parcel_id: str = typer.Option("43.6532_-79.3832", "--parcel-id")) -> None:
     """Look up the site envelope + constraints for a parcel (UI lat_lng point)."""

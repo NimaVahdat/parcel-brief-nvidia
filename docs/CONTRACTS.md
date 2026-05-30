@@ -20,6 +20,8 @@ class ZoningEnvelope(BaseModel):
     permitted_uses: list[str]           # ["residential", "retail", ...]
     footprint_polygon: list[tuple[float, float]]   # WGS84 (lon, lat) ring
     parking_minimum: int | None
+    bylaw_reference: str | None = None   # source: By-law 569-2013 chapter/section
+    missing_middle: str | None = None    # as-of-right multiplex note, if any
 
 class SiteConstraints(BaseModel):
     parcel_id: str
@@ -29,6 +31,7 @@ class SiteConstraints(BaseModel):
     conservation_overlays: list[str]
     transit_distance_m: float
     easements: list[str]
+    fire_station_distance_m: float | None = None   # nearest fire station (m)
 
 class SiteData(BaseModel):
     zoning_envelope: ZoningEnvelope
@@ -98,6 +101,8 @@ class OppositionForecast(BaseModel):
 class GoNoGo(BaseModel):
     recommendation: Literal["buy", "pass", "conditional"]
     confidence: float
+    developability_score: int = 0          # 0-100 composite headline score
+    score_breakdown: dict[str, int] = {}   # explainable sub-scores
     dominant_sensitivities: list[str]
     rationale: str
 
