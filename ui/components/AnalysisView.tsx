@@ -125,12 +125,6 @@ type ApiResult =
   | { brief: BriefResponse; error: null }
   | { brief: null; error: string };
 
-interface LogEntry {
-  secs: number;
-  agentName: string;
-  task: string;
-}
-
 // ─── hooks ────────────────────────────────────────────────────────────────────
 
 function useElapsedSeconds(): number {
@@ -371,17 +365,6 @@ function ProgressView({
   elapsedRef.current = elapsed;
 
   const subTaskIdx = useSubTaskCycle(completedCount);
-  const [log, setLog] = useState<LogEntry[]>([]);
-
-  useEffect(() => {
-    const agent = AGENTS[completedCount];
-    if (!agent) return;
-    const task = agent.tasks[subTaskIdx] ?? agent.tasks[0];
-    setLog((prev) => [
-      { secs: elapsedRef.current, agentName: agent.name, task },
-      ...prev.slice(0, 7),
-    ]);
-  }, [subTaskIdx, completedCount]); // elapsedRef is a ref — intentionally omitted
 
   return (
     <div className="flex flex-col items-center px-4 py-10">
