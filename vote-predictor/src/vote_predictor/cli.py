@@ -65,19 +65,13 @@ def demo(councillors: str = typer.Option("bravo,malik,chan,okonkwo,smith", "--co
 
 
 @app.command()
-def scrape(
-    meeting_lo: int = typer.Option(27000, "--meeting-lo"),
-    meeting_hi: int = typer.Option(27210, "--meeting-hi"),
-    max_items: int = typer.Option(0, "--max-items", help="0 = no limit"),
-    headless: bool = typer.Option(False, "--headless", help="headless fails Akamai; use a real DISPLAY"),
+def fetch(
+    ratio: int = typer.Option(3, "--ratio", help="approved-per-refused balance"),
 ) -> None:
-    """Scrape planning precedents from TMMIS by scanning a meetingId range.
+    """Build the precedent corpus from Toronto's Development Applications open data."""
+    from vote_predictor.ingest import build_corpus
 
-    Run with a real display:  DISPLAY=:1 vote-predictor scrape ...
-    """
-    from vote_predictor.ingest import scrape as do_scrape
-
-    n = do_scrape(scan=(meeting_lo, meeting_hi), headless=headless, max_items=max_items or None)
+    n = build_corpus(approved_per_refused=ratio)
     typer.echo(f"Wrote {n} precedents. Next: `vote-predictor build-index`")
 
 
