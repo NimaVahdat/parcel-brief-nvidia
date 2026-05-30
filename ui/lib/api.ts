@@ -105,3 +105,40 @@ export async function analyze(parcelId: string): Promise<BriefResponse> {
   }
   return res.json();
 }
+
+export type StreamHandlers = {
+  onAgent: (node: string) => void;
+  onBrief: (brief: BriefResponse, cached: boolean) => void;
+  onError: (message: string) => void;
+};
+
+// Streams real agent-completion events (SSE), then the final brief. Returns a
+// cleanup fn. Cached parcels emit all steps + the brief instantly.
+export function analyzeStream(
+  parcelId: string,
+  handlers: StreamHandlers
+): () => void {
+  const url = `${BASE_URL}/analyze/stream?parcel_id=${encodeURIComponent(parcelId)}`;
+  const es = new EventSource(url);
+  es.onmessage = (ev) => {
+    try {
+      const data = JSON.parse(ev.data);
+      if (data.brief) {
+        handlers.onBrief(data.brief as BriefResponse, Boolean(data.cached));
+        es.close();
+      } else if (data.error) {
+        handlers.onError(String(data.error));
+        es.close();
+      } else if (data.agent) {
+        handlers.onAgent(String(data.agent));
+      }
+    } catch {
+      /* ignore malformed keep-alive frames */
+    }
+  };
+  es.onerror = () => {
+    handlers.onError("Connection to the analysis server was lost.");
+    es.close();
+  };
+  return () => es.close();
+}
