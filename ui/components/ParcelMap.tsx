@@ -1,25 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MapContainer, TileLayer, useMapEvents } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  CircleMarker,
+  useMapEvents,
+} from "react-leaflet";
 
 const TORONTO_CENTER: [number, number] = [43.6532, -79.3832];
 
-function ClickToAnalyze() {
+interface ClickPoint {
+  lat: number;
+  lng: number;
+}
+
+function ClickToAnalyze({
+  onPendingClick,
+}: {
+  onPendingClick: (pt: ClickPoint) => void;
+}) {
   const router = useRouter();
   useMapEvents({
     click(e) {
-      // TODO: replace lat/lng-as-id with a real parcel lookup against
-      // site-proforma. For now we encode the click point as the parcel id
-      // so the demo flow works end-to-end.
-      const parcelId = `${e.latlng.lat.toFixed(5)}_${e.latlng.lng.toFixed(5)}`;
-      router.push(`/analyze/${parcelId}`);
+      const { lat, lng } = e.latlng;
+      onPendingClick({ lat, lng });
+      const parcelId = `${lat.toFixed(5)}_${lng.toFixed(5)}`;
+      setTimeout(() => {
+        router.push(`/analyze/${encodeURIComponent(parcelId)}`);
+      }, 380);
     },
   });
   return null;
 }
 
 export default function ParcelMap() {
+  const [clickPt, setClickPt] = useState<ClickPoint | null>(null);
+
   return (
     <MapContainer
       center={TORONTO_CENTER}
@@ -28,10 +46,22 @@ export default function ParcelMap() {
       scrollWheelZoom
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <ClickToAnalyze />
+      <ClickToAnalyze onPendingClick={setClickPt} />
+      {clickPt && (
+        <CircleMarker
+          center={[clickPt.lat, clickPt.lng]}
+          radius={10}
+          pathOptions={{
+            color: "#3b82f6",
+            fillColor: "#3b82f6",
+            fillOpacity: 0.25,
+            weight: 2.5,
+          }}
+        />
+      )}
     </MapContainer>
   );
 }
