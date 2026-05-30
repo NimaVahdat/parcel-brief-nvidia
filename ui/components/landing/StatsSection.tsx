@@ -128,10 +128,10 @@ export default function StatsSection() {
               {/* Divider */}
               <div className="my-3 h-px w-8 bg-blue-200" />
 
-              <p className="text-sm font-semibold text-slate-800">
+              <p className="text-sm font-bold text-slate-800">
                 {stat.label}
               </p>
-              <p className="mt-1.5 text-xs leading-snug text-slate-400">
+              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
                 {stat.sublabel}
               </p>
             </motion.div>
