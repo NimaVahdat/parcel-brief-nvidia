@@ -1,15 +1,28 @@
 import Link from "next/link";
 import AnalysisView from "@/components/AnalysisView";
 import ThemeToggle from "@/components/ThemeToggle";
+import type { ProjectOverrides } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 export default function AnalyzePage({
   params,
+  searchParams,
 }: {
   params: { parcelId: string };
+  searchParams?: Record<string, string | string[]>;
 }) {
   const parcelId = decodeURIComponent(params.parcelId);
+
+  // Read scenario overrides passed from the homepage scenario panel via URL params.
+  // All fields are optional; omitted or invalid values are simply ignored.
+  const initialOverrides: ProjectOverrides = {};
+  const h = Number(searchParams?.height_m);
+  const u = Number(searchParams?.total_units);
+  const a = Number(searchParams?.affordable_units);
+  if (Number.isFinite(h) && h > 0) initialOverrides.height_m = h;
+  if (Number.isFinite(u) && u > 0) initialOverrides.total_units = u;
+  if (Number.isFinite(a) && a >= 0) initialOverrides.affordable_units = a;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -47,7 +60,7 @@ export default function AnalyzePage({
 
       {/* Client-driven analysis: shows staged progress then the brief */}
       <div className="mx-auto max-w-5xl px-6 py-8">
-        <AnalysisView parcelId={parcelId} />
+        <AnalysisView parcelId={parcelId} initialOverrides={initialOverrides} />
       </div>
     </div>
   );

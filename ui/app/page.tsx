@@ -39,7 +39,7 @@ export default function Home() {
         </span>
         <div className="ml-auto flex items-center gap-2">
           <span className="hidden rounded border border-slate-200 px-2 py-1 text-xs text-slate-400 sm:inline">
-            NVIDIA Spark Hack · May 2026
+            NVIDIA GB10 · Toronto
           </span>
           <ThemeToggle />
         </div>
@@ -71,9 +71,9 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Stats + feature cards ──────────────────────────────────────────── */}
-      <StatsSection />
+      {/* ── Feature cards, then stats as proof ───────────────────────────── */}
       <FeatureCards />
+      <StatsSection />
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       <footer className="border-t border-slate-800 bg-slate-950 px-6 py-10">
@@ -89,7 +89,7 @@ export default function Home() {
             </span>
           </div>
           <p className="text-xs text-slate-600">
-            Built at NVIDIA Spark Hack Toronto 2026 · NVIDIA GB10 · LangGraph
+            Powered by NVIDIA GB10 · LangGraph · Toronto 2026
           </p>
         </div>
       </footer>

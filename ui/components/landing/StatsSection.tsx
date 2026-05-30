@@ -116,7 +116,7 @@ export default function StatsSection() {
               className="flex flex-col items-center text-center"
             >
               {/* Large animated number */}
-              <div className="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-6xl">
+              <div className="text-5xl font-black tracking-tighter text-slate-900 sm:text-6xl">
                 <CountUpNumber
                   prefix={stat.prefix}
                   target={stat.target}
