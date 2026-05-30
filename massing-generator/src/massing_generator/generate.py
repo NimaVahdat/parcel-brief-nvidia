@@ -4,9 +4,12 @@ Real path: ZoningEnvelope -> LLM building spec -> validation/repair -> 3D render
 -> MassingOutput, via ``massing_generator.builder``. Used automatically when an
 Anthropic API key is configured.
 
-Mock path: deterministic placeholder options. Used when no API key is present
-(so the end-to-end brief pipeline and tests still run offline), when
-``MASSING_USE_MOCK=1``, or if the real engine raises for any reason.
+Mock path: deterministic, envelope-respecting options via ``massing_fit`` — real lot
+area from the footprint, GFA <= max_fsi * lot_area, height <= the cap, and a unit mix
+consistent with the GFA. Used when no API key is present (so the end-to-end brief
+pipeline and tests still run offline), when ``MASSING_USE_MOCK=1``, or if the real
+engine raises for any reason. On this path the 3D visuals (three_d_uri,
+facade_renders) stay mock placeholders; only the numbers are real.
 """
 
 from __future__ import annotations
@@ -14,12 +17,13 @@ from __future__ import annotations
 import logging
 import os
 
+from massing_generator.massing_fit import fit_massing, lot_area_m2
 from massing_generator.schemas import Massing, MassingOutput, ZoningEnvelope
 
 log = logging.getLogger(__name__)
 
-# (variant tag, design directive) — mirrors the three mock options below. The
-# directive nudges the design intent; hard caps from the envelope always hold.
+# (variant tag, design directive) — drives the real LLM engine. The directive
+# nudges the design intent; hard caps from the envelope always hold.
 _DIRECTIVES: list[tuple[str, str]] = [
     ("market", "Maximize leasable area within the caps with a standard market-rate unit mix."),
     (
@@ -32,6 +36,14 @@ _DIRECTIVES: list[tuple[str, str]] = [
         "Lower-rise, context-sensitive massing comfortably below the height cap, "
         "with smaller floorplates.",
     ),
+]
+
+# (label, GFA fraction of the FSI cap, affordable share) — drives the mock path,
+# fed through ``fit_massing`` so the numbers respect the legal envelope.
+_MOCK_OPTIONS: list[tuple[str, float, float]] = [
+    ("max-density", 1.00, 0.0),
+    ("affordable", 0.95, 0.15),
+    ("conservative", 0.70, 0.08),
 ]
 
 
@@ -52,8 +64,8 @@ def generate(
     """Generate viable 3D building massings for a zoning envelope.
 
     Runs the real LLM-spec + 3D-render engine when an Anthropic API key is
-    configured, otherwise returns deterministic mock options. Pass
-    ``use_mock=True`` to force the mock. ``num_options`` (or the
+    configured, otherwise returns deterministic, envelope-respecting mock options.
+    Pass ``use_mock=True`` to force the mock. ``num_options`` (or the
     ``MASSING_NUM_OPTIONS`` env var) controls how many real design variants are
     produced — each is a separate LLM call, so the default is 1.
     """
@@ -100,40 +112,35 @@ def _real_output(
 
 
 def _mock_output(envelope: ZoningEnvelope) -> MassingOutput:
-    """Deterministic placeholder options — no LLM, no render."""
-    base_height = envelope.max_height_m
-    base_gfa = envelope.max_fsi * 1500  # placeholder lot area
+    """Deterministic, envelope-respecting options — no LLM, no render.
 
-    options = [
-        Massing(
-            massing_id=f"{envelope.parcel_id}-tall",
-            height_m=base_height,
-            total_gfa_m2=base_gfa,
-            unit_mix={"studio": 12, "1br": 30, "2br": 28, "3br": 14},
-            retail_sqft=2400,
-            affordable_units=0,
-            three_d_uri=f"mock://massing/{envelope.parcel_id}-tall.glb",
-            facade_renders=[f"mock://render/{envelope.parcel_id}-tall-n.png"],
-        ),
-        Massing(
-            massing_id=f"{envelope.parcel_id}-affordable",
-            height_m=base_height,
-            total_gfa_m2=base_gfa,
-            unit_mix={"studio": 16, "1br": 32, "2br": 24, "3br": 12},
-            retail_sqft=2400,
-            affordable_units=12,
-            three_d_uri=f"mock://massing/{envelope.parcel_id}-affordable.glb",
-            facade_renders=[f"mock://render/{envelope.parcel_id}-affordable-n.png"],
-        ),
-        Massing(
-            massing_id=f"{envelope.parcel_id}-conservative",
-            height_m=base_height * 0.75,
-            total_gfa_m2=base_gfa * 0.75,
-            unit_mix={"1br": 24, "2br": 20, "3br": 10},
-            retail_sqft=1800,
-            affordable_units=6,
-            three_d_uri=f"mock://massing/{envelope.parcel_id}-conservative.glb",
-            facade_renders=[f"mock://render/{envelope.parcel_id}-conservative-n.png"],
-        ),
-    ]
+    Numbers (GFA, height, unit mix, retail, affordable) fit the legal envelope and
+    are internally consistent via ``massing_fit``; the 3D URIs stay mock placeholders
+    until the real renderer fills them in.
+    """
+    lot_area = lot_area_m2(envelope.footprint_polygon) or 1000.0
+    has_retail = "retail" in (envelope.permitted_uses or [])
+
+    options: list[Massing] = []
+    for label, frac, affordable_share in _MOCK_OPTIONS:
+        fit = fit_massing(
+            max_height_m=envelope.max_height_m,
+            max_fsi=envelope.max_fsi,
+            lot_area=lot_area,
+            has_retail=has_retail,
+            gfa_fraction=frac,
+            affordable_share=affordable_share,
+        )
+        options.append(
+            Massing(
+                massing_id=f"{envelope.parcel_id}-{label}",
+                height_m=fit["height_m"],
+                total_gfa_m2=fit["total_gfa_m2"],
+                unit_mix=fit["unit_mix"],
+                retail_sqft=fit["retail_sqft"],
+                affordable_units=fit["affordable_units"],
+                three_d_uri=f"mock://massing/{envelope.parcel_id}-{label}.glb",
+                facade_renders=[f"mock://render/{envelope.parcel_id}-{label}-n.png"],
+            )
+        )
     return MassingOutput(options=options)
