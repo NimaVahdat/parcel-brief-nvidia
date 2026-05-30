@@ -1,0 +1,29 @@
+[project]
+name = "parcel-brief"
+version = "0.0.1"
+description = "Toronto real estate pre-acquisition analysis system"
+requires-python = ">=3.12"
+
+[tool.uv.workspace]
+members = [
+    "vote-predictor",
+    "opposition-generator",
+    "massing-generator",
+    "site-proforma",
+    "connector",
+]
+
+[tool.uv.sources]
+vote-predictor = { workspace = true }
+opposition-generator = { workspace = true }
+massing-generator = { workspace = true }
+site-proforma = { workspace = true }
+connector = { workspace = true }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "W"]
+ignore = ["E501"]

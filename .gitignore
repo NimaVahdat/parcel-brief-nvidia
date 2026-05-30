@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# uv
+.uv-cache/
+uv.lock
+
+# Component-local data (each component dumps raw data here)
+**/data/
+!docs/**
+!**/test_data/
+
+# Models and checkpoints
+*.pt
+*.bin
+*.safetensors
+*.joblib
+*.gguf
+checkpoints/
+runs/
+wandb/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Environments
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+logs/
