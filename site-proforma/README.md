@@ -2,10 +2,13 @@
 
 ## What this does
 
-Two related responsibilities, exposed as two functions:
+Two deterministic functions (no ML — GIS + finance):
 
-1. **Site lookup** — given a Toronto parcel ID, return the legal building envelope (from the zoning bylaw spatial layer) and the site constraints (heritage, tree canopy, sun-shadow, transit, conservation, easements).
-2. **Pro-forma** — given a candidate massing and the site data, return construction cost, projected rents (from CMHC), debt service, IRR over 5 and 10 years, and sensitivities.
+1. **`lookup(parcel_id)`** — what can I legally build here, and what's in the way?
+   The legal building envelope (height, FSI, setbacks, uses, parking) + site
+   constraints (heritage, transit distance, sun/shadow, conservation, easements).
+2. **`calculate(massing, site)`** — do the numbers work? Construction cost,
+   projected rents, debt service, **IRR over 5 and 10 years**, and sensitivities.
 
 ## Contract
 
@@ -14,65 +17,79 @@ def lookup(parcel_id: str) -> SiteData
 def calculate(massing: Massing, site: SiteData) -> FinancialModel
 ```
 
-Full type definitions in `src/site_proforma/schemas.py`. Source of truth in `docs/CONTRACTS.md`.
+`parcel_id` is the map-click point the UI sends as `"lat_lng"` (see `ui/ParcelMap`).
+Types in `src/site_proforma/schemas.py`; source of truth in `docs/CONTRACTS.md`.
 
-## Data sources
+## The pro-forma (`calculate`) — a real DCF
 
-- **Zoning By-law 569-2013** (spatial layer)
-- **Property Boundaries** (parcels)
-- **Heritage Register**, **Street Tree Data**, **TTC GTFS**, **TRCA regulated areas**
-- **Tall Building Design Guidelines** (sun-shadow rules) — parsed from the PDF
-- **CMHC Rental Market Survey** — neighborhood-level rents
-- **StatsCan 2021 Census** — neighborhood demographics
+A transparent, deterministic discounted-cash-flow model:
 
-All URLs in `docs/DATA.md`. Local dumps to `./data/` (gitignored). Source-of-truth tables persist to Postgres+PostGIS (shared docker-compose).
-
-## How to run solo
-
-```bash
-# from repo root
-docker compose up -d           # need Postgres for spatial queries
-uv sync
-
-# look up a mock parcel
-uv run python -m site_proforma.cli lookup --parcel-id 543-dundas-w
-
-# run a mock pro-forma
-uv run python -m site_proforma.cli proforma --demo
-
-# OR standalone service on :8004
-uv run uvicorn site_proforma.service:app --port 8004 --reload
+```
+construction cost = GFA × cost/m² (hard + soft + contingency)
+stabilized NOI    = (gross rent × (1−vacancy) + retail) × (1 − opex)
+stabilized value  = NOI / cap rate
+IRR (5y, 10y)     = equity out → (NOI − debt service)/yr → sale at horizon
+sensitivities     = rate ±100bp, rent ±10%, +6mo stabilization
 ```
 
-## Current state
+Every assumption (cost benchmarks, CMHC-level rents, LTC, interest, cap rate,
+timing) lives in `assumptions.py` and is **env-overridable** — order-of-magnitude
+Toronto benchmarks, decision-grade for screening. Affordable units rent at a
+configurable discount, so the pro-forma reflects the affordability trade-off the
+other components surface.
 
-- [x] Skeleton scaffolded, both contract functions return mock data
-- [x] CLI runs end-to-end
-- [x] Standalone FastAPI service runs
-- [ ] Toronto Open Data ingestion → Postgres+PostGIS (`ingest_open_data.py`)
-- [ ] CMHC rental tables ingestion (`ingest_cmhc.py`)
-- [ ] StatsCan census ingestion (`ingest_statscan.py`)
-- [ ] Real `lookup()` against PostGIS (spatial join parcel ↔ zoning, heritage, etc.)
-- [ ] Real `calculate()` with Toronto cost benchmarks + CMHC rents + DCF math
+## The site lookup (`lookup`)
 
-## Next tasks
+- **Transit distance is real** — computed (haversine) from actual TTC subway-station
+  coordinates.
+- **Zoning envelope is a deterministic, location-aware gradient** (downtown → high
+  density, avenues → mid-rise, neighbourhoods → low-rise) derived from distance to
+  the core — a defensible screening estimate.
+- Heritage / sun-shadow / conservation use sensible rules (e.g. a shadow-study rule
+  triggers for ≥30 m buildings).
 
-1. `ingest_open_data.py`: download zoning, parcels, heritage, trees, TTC GTFS, TRCA. Load to PostGIS with `geopandas.GeoDataFrame.to_postgis`. Each table indexed on `geom`.
-2. Implement `site.lookup`: spatial join parcel to applicable zoning polygon; LEFT JOIN to heritage, trees within 30m, TRCA, transit < 500m. Return a populated `SiteData`.
-3. `ingest_cmhc.py`: parse the CMHC rental survey XLSX. Store by neighborhood + bed count.
-4. `proforma.calculate`: implement the financial math. Standard Toronto cost-per-sqft for the massing's GFA. Annual rent = sum(units × CMHC neighborhood rent × 12). Debt service at assumed rate. IRR over 5 and 10 years with terminal cap.
+The fully-legal envelope needs the City's **Zoning By-law spatial layer**
+(point-in-polygon). That's the documented next step — drop the GeoJSON at
+`data/zoning.geojson` and wire `_zoning_from_geojson` (install the `gis` extra). The
+contract and the pro-forma don't change.
+
+## Run it
+
+```bash
+pip install -e site-proforma            # pure-Python, no GIS/DB needed
+site-proforma lookup --parcel-id 43.6532_-79.3832
+site-proforma proforma --demo
+uvicorn site_proforma.service:app --port 8004     # optional service
+```
+
+## Configuration (selected)
+
+| Env var | Meaning | Default |
+|---|---|---|
+| `SP_HARD_RES_PSM` | residential hard cost $/m² | 4300 |
+| `SP_CAP_RATE` | terminal cap rate | 0.045 |
+| `SP_LTC` | loan-to-cost | 0.60 |
+| `SP_INTEREST_RATE` | debt rate | 0.062 |
+| `SP_RENT_1BR` … | monthly rent by unit type | CMHC-level |
+
+(Full list in `assumptions.py`.)
 
 ## File map
 
 | File | Purpose |
 |---|---|
-| `src/site_proforma/__init__.py` | Re-exports `lookup()` and `calculate()` |
-| `src/site_proforma/schemas.py` | Pydantic types |
-| `src/site_proforma/ingest_open_data.py` | Toronto Open Data ETL → PostGIS |
-| `src/site_proforma/ingest_cmhc.py` | CMHC XLSX → Postgres |
-| `src/site_proforma/ingest_statscan.py` | StatsCan census → Postgres |
-| `src/site_proforma/site.py` | `lookup()` — CONTRACT |
-| `src/site_proforma/proforma.py` | `calculate()` — CONTRACT |
-| `src/site_proforma/service.py` | Optional FastAPI on :8004 |
-| `src/site_proforma/cli.py` | Solo demo CLI |
-| `tests/test_smoke.py` | Smoke test |
+| `site.py` | `lookup()` — envelope + constraints (real transit, location-aware zoning) |
+| `proforma.py` | `calculate()` — the real DCF + IRR + sensitivities |
+| `assumptions.py` | env-overridable Toronto benchmarks |
+| `schemas.py` · `cli.py` · `service.py` | contract types, CLI, FastAPI on :8004 |
+
+## Honest scope
+
+- `calculate()` is a **real, defensible DCF** (the high-value part).
+- `lookup()` zoning is a **location-aware estimate**, not the legal spatial layer yet
+  (transit distance is real). The GIS hook is documented above.
+
+## Notes for the team
+
+- The connector hardcodes `neighborhood` and councillors; once `lookup()` returns
+  ward/neighbourhood metadata, opposition + vote components can stop hardcoding.
