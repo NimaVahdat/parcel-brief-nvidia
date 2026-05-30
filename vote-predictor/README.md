@@ -37,40 +37,38 @@ Types in `src/vote_predictor/schemas.py`; source of truth in `docs/CONTRACTS.md`
 
 ## The corpus — real Toronto outcomes
 
-Past planning items (`PLAN_ACT`) scraped from the TMMIS council JSON API (reusing the
-headful-browser Akamai bypass from opposition-generator), API-only so it is fast. The
-council outcome (approved/refused) comes from the decision-report title + item status.
-The embedded `text` strips outcome words so retrieval matches the project, not the label.
+Built from Toronto's **Development Applications open dataset** (CKAN, no Akamai, plain
+HTTP, ~26k records). We keep the records with a **decided outcome** — approved
+(`Council Approved`, `OMB Approved`, …) vs refused (`Refused`, `OMB Refused`) — for
+major development applications, and **balance the classes** so the backtest is
+non-trivial. Crucially, we embed each application's **DESCRIPTION** (storeys, units,
+use) — the project features that actually predict outcomes — not just an address. The
+DESCRIPTION is the applicant's proposal and contains no outcome, so there is no leakage.
+
+(Toronto's TMMIS council API was the earlier source, but agenda *titles* lack project
+features and gave no predictive signal — the open-data descriptions are the unlock.)
 
 ## Measuring quality
 
-Because every precedent has a **known real outcome**, we can actually backtest:
+Every precedent has a **known real outcome**, so we backtest for real:
 
 ```
 python -m eval.evaluate     # leave-one-out over the corpus
 ```
 
-Reports **accuracy, AUC, Brier (calibration), and lift over the base rate** — the
-honest bar, since Toronto approves most applications.
+**Honest results on real Toronto data** (196 precedents, base rate 0.75 approved):
 
-**What the backtest tells us (honest results):**
-- On the **feature-rich seed** corpus the method separates cleanly (AUC ~1.0) — the
-  retrieval + probability machinery is sound.
-- On the **real title-only corpus** (73 scraped precedents: 56 clean approvals, 17
-  amended; base rate 0.77) it shows **AUC ~0.54, ~0 lift** — i.e. *no predictive
-  signal*. This is a real finding, not a bug: **agenda titles don't contain the
-  features that predict contention** (height, units, affordable share, opposition
-  live in the staff-report PDF, not the title). Toronto also approves nearly
-  everything that reaches a decision, so the predictable target is clean approval
-  vs council-imposed amendment.
+| metric | value | meaning |
+|---|---|---|
+| **AUC** | **0.84** | ranks refused below approved — genuinely discriminative (0.5 = random) |
+| **balanced accuracy** | **0.85** | the right metric under class imbalance |
+| Brier | 0.24 | calibration (lower is better) |
+| accuracy @0.5 / raw lift | 0.54 / ~0 | **misleading** — at a 75% base rate, raw accuracy can't move; use AUC |
 
-**The path to real predictive lift** is richer features: embed the staff-report
-description (parse the `backgroundfile` PDF) or join the Development Applications
-open dataset, instead of the agenda title alone. The retrieval/probability/lever
-machinery stays the same.
-
-`per_councillor` and `levers` have no counterfactual ground truth and are
-face-validity checks only.
+The approved sample is spread across the full date range so the model separates on
+planning merit, not era. `per_councillor` and `levers` have no counterfactual ground
+truth and are face-validity checks only (the levers do shift sensibly — a
+modest+affordable project scores ~0.83 vs ~0.66 for an over-height, variance-heavy one).
 
 ## Run it
 
@@ -80,8 +78,8 @@ vote-predictor seed                        # synthetic precedent corpus
 vote-predictor build-index                 # embed it (needs Ollama)
 vote-predictor demo                        # full VotePrediction (+ which tier ran)
 
-# real corpus (headful browser beats Akamai — use a real DISPLAY):
-DISPLAY=:1 vote-predictor scrape --meeting-lo 27000 --meeting-hi 27210
+# real corpus from Toronto's Development Applications open data (no browser needed):
+vote-predictor fetch
 vote-predictor build-index
 
 # optional service
