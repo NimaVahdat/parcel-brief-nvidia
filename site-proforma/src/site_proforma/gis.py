@@ -157,11 +157,30 @@ def lookup_envelope(parcel_id: str, lat: float, lon: float) -> ZoningEnvelope | 
     dlat, dlon = 0.00009, 0.00012
     poly = [(lon - dlon, lat - dlat), (lon - dlon, lat + dlat),
             (lon + dlon, lat + dlat), (lon + dlon, lat - dlat), (lon - dlon, lat - dlat)]
+    chapt, sectn = za.get("ZBL_CHAPT"), za.get("ZBL_SECTN")
+    ref = "By-law 569-2013"
+    if chapt or sectn:
+        ref += f", Ch. {chapt} §{sectn}".rstrip(" §")
+    if zn:
+        ref += f" (zone {zn})"
     return ZoningEnvelope(
         parcel_id=parcel_id, max_height_m=float(max_height), max_fsi=float(max_fsi),
         setbacks={"north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5},
         permitted_uses=_uses(zn), footprint_polygon=poly, parking_minimum=parking,
+        bylaw_reference=ref, missing_middle=missing_middle(zn),
     )
+
+
+def missing_middle(zn: str) -> str | None:
+    """Toronto's as-of-right multiplex permission for a zone category (post-2023)."""
+    z = (zn or "").upper()
+    if z.startswith(("RA", "RM")):
+        return "Low-rise apartment / multiplex permitted as-of-right"
+    if z.startswith(("RD", "RS", "RT", "R")):
+        return "Up to a fourplex permitted as-of-right (city-wide multiplex permissions)"
+    if z.startswith("CR"):
+        return "Residential multiplex permitted within the mixed-use zone"
+    return None
 
 
 def _num(v) -> float | None:
@@ -319,3 +338,53 @@ def parcel_footprint(lat: float, lon: float) -> list | None:
             poly = g if g.geom_type == "Polygon" else max(g.geoms, key=lambda p: p.area)
             return [(round(x, 6), round(y, 6)) for x, y in poly.exterior.coords]
     return None
+
+
+# --------------------------------------------------------------------------- #
+# Fire Facility Locations — emergency-response proximity (85 stations, WGS84)
+# --------------------------------------------------------------------------- #
+FIRE_RID = "9d1b7352-32ce-4af2-8681-595ce9e47b6e"
+FIRE_JSON = DATA_DIR / "fire_stations.json"
+_fire = None  # list[(lon, lat)]
+
+
+def fetch_fire() -> int:
+    """Download the 85 fire-station points to data/. Returns the count."""
+    import httpx
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    pts, offset = [], 0
+    with httpx.Client(timeout=120, follow_redirects=True) as c:
+        while True:
+            r = c.get(_CKAN_SEARCH, params={"resource_id": FIRE_RID, "limit": 1000, "offset": offset})
+            r.raise_for_status()
+            res = r.json()["result"]
+            for rec in res["records"]:
+                g = rec.get("geometry")
+                if isinstance(g, str):
+                    g = json.loads(g)
+                coords = (g or {}).get("coordinates")
+                if coords and len(coords) >= 2:
+                    pts.append([float(coords[0]), float(coords[1])])
+            offset += len(res["records"])
+            if offset >= res.get("total", 0) or not res["records"]:
+                break
+    FIRE_JSON.write_text(json.dumps(pts))
+    return len(pts)
+
+
+def _load_fire() -> None:
+    global _fire
+    _fire = json.loads(FIRE_JSON.read_text()) if FIRE_JSON.exists() else []
+
+
+def nearest_fire_station_m(lat: float, lon: float) -> float | None:
+    """Distance (m) to the nearest fire station, or None if data isn't present."""
+    global _fire
+    if _fire is None:
+        try:
+            _load_fire()
+        except Exception:
+            _fire = []
+    if not _fire:
+        return None
+    return round(min(_haversine_m(lat, lon, p[1], p[0]) for p in _fire), 0)

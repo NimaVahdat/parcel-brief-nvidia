@@ -13,6 +13,9 @@ class ZoningEnvelope(BaseModel):
     permitted_uses: list[str]
     footprint_polygon: list[tuple[float, float]]
     parking_minimum: int | None = None
+    # source-cited provenance (By-law 569-2013 chapter/section) + missing-middle flag
+    bylaw_reference: str | None = None
+    missing_middle: str | None = None
 
 
 class SiteConstraints(BaseModel):
@@ -23,6 +26,7 @@ class SiteConstraints(BaseModel):
     conservation_overlays: list[str]
     transit_distance_m: float
     easements: list[str]
+    fire_station_distance_m: float | None = None
 
 
 class SiteData(BaseModel):

@@ -17,6 +17,8 @@ class ZoningEnvelope(BaseModel):
     permitted_uses: list[str]
     footprint_polygon: list[tuple[float, float]]
     parking_minimum: int | None = None
+    bylaw_reference: str | None = None
+    missing_middle: str | None = None
 
 
 class SiteConstraints(BaseModel):
@@ -27,6 +29,7 @@ class SiteConstraints(BaseModel):
     conservation_overlays: list[str]
     transit_distance_m: float
     easements: list[str]
+    fire_station_distance_m: float | None = None
 
 
 class Massing(BaseModel):
@@ -83,6 +86,8 @@ class OppositionForecast(BaseModel):
 class GoNoGo(BaseModel):
     recommendation: Literal["buy", "pass", "conditional"]
     confidence: float
+    developability_score: int = 0          # 0-100 composite headline score
+    score_breakdown: dict[str, int] = {}   # explainable sub-scores
     dominant_sensitivities: list[str]
     rationale: str
 

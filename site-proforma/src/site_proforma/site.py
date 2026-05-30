@@ -72,10 +72,16 @@ def _zoning_envelope(parcel_id: str, lat: float, lon: float) -> ZoningEnvelope:
     dlat, dlon = 0.00009, 0.00012
     poly = [(lon - dlon, lat - dlat), (lon - dlon, lat + dlat),
             (lon + dlon, lat + dlat), (lon + dlon, lat - dlat), (lon - dlon, lat - dlat)]
+    mm = (
+        "Up to a fourplex permitted as-of-right (city-wide multiplex permissions)"
+        if "residential" in uses else None
+    )
     return ZoningEnvelope(
         parcel_id=parcel_id, max_height_m=height, max_fsi=fsi,
         setbacks={"north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5},
         permitted_uses=uses, footprint_polygon=poly, parking_minimum=parking,
+        bylaw_reference="By-law 569-2013 (estimated — zoning layer not loaded)",
+        missing_middle=mm,
     )
 
 
@@ -86,15 +92,17 @@ def _constraints(parcel_id: str, lat: float, lon: float, height_m: float) -> Sit
         if height_m >= 30 else []
     )
     heritage = "none"
+    fire_m = None
     try:
-        from site_proforma.gis import heritage_status
+        from site_proforma.gis import heritage_status, nearest_fire_station_m
         heritage = heritage_status(lat, lon)
+        fire_m = nearest_fire_station_m(lat, lon)
     except Exception:
         heritage = "none"
     return SiteConstraints(
         parcel_id=parcel_id, heritage_status=heritage, tree_canopy_area_m2=0.0,
         sun_shadow_rules=sun_shadow, conservation_overlays=[],
-        transit_distance_m=transit, easements=[],
+        transit_distance_m=transit, easements=[], fire_station_distance_m=fire_m,
     )
 
 
