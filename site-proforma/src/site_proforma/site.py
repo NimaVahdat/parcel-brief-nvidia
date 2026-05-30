@@ -93,12 +93,25 @@ def _constraints(parcel_id: str, lat: float, lon: float, height_m: float) -> Sit
 
 
 def lookup(parcel_id: str) -> SiteData:
-    """Look up the building envelope + site constraints for a Toronto parcel point."""
+    """Look up the building envelope + site constraints for a Toronto parcel point.
+
+    Uses the real City Zoning By-law layers (point-in-polygon) when the data is
+    present; otherwise falls back to a location-aware heuristic envelope.
+    """
     coords = _parse_parcel_id(parcel_id)
     if coords is None:
         # not a coordinate id (e.g. an address slug) — fall back to a core location
         coords = _CORE
     lat, lon = coords
-    envelope = _zoning_envelope(parcel_id, lat, lon)
+
+    envelope = None
+    try:
+        from site_proforma.gis import lookup_envelope
+        envelope = lookup_envelope(parcel_id, lat, lon)
+    except Exception:
+        envelope = None
+    if envelope is None:
+        envelope = _zoning_envelope(parcel_id, lat, lon)
+
     constraints = _constraints(parcel_id, lat, lon, envelope.max_height_m)
     return SiteData(zoning_envelope=envelope, constraints=constraints)

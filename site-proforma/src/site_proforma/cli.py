@@ -11,6 +11,15 @@ from site_proforma.site import lookup
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
+@app.command("fetch-zoning")
+def fetch_zoning_cmd() -> None:
+    """Download the City Zoning By-law layers so lookup() returns real envelopes."""
+    from site_proforma.gis import fetch_zoning
+
+    n_area, n_height = fetch_zoning()
+    print(f"Downloaded {n_area} zoning-area + {n_height} height-overlay polygons")
+
+
 @app.command("lookup")
 def lookup_cmd(parcel_id: str = typer.Option("43.6532_-79.3832", "--parcel-id")) -> None:
     """Look up the site envelope + constraints for a parcel (UI lat_lng point)."""
