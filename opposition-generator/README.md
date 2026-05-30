@@ -110,8 +110,12 @@ uvicorn opposition_generator.service:app --port 8002
 Building the real corpus (deliberate, outward-facing — see `docs/DATA.md`):
 
 ```bash
-opposition-generator scrape --start-year 2022 --max-files 200   # needs [scrape]
-opposition-generator ingest                                      # extract + LLM-tag
+# TMMIS sits behind Akamai; a *headful* browser on a real display passes the bot
+# check (headless gets "Access Denied"), so run scrape with DISPLAY set. The
+# scraper finds development items via the council JSON API, reads each agenda-item
+# page for communicationfile URLs, and downloads the (unprotected) legdocs PDFs.
+DISPLAY=:1 opposition-generator scrape --meeting-lo 27050 --meeting-hi 27210 --max-files 70   # needs [scrape]
+OPP_TAG_MODEL=gemma4:26b opposition-generator ingest             # extract + LLM-tag (faster model)
 opposition-generator build-index
 ```
 
@@ -148,9 +152,11 @@ and service port.
 - [x] Ollama embeddings + generation; SQLite/pgvector pluggable store
 - [x] Hybrid retrieval (dense + BM25 + RRF + MMR + HyDE)
 - [x] Hybrid sample letters (generated + real evidence) with concern guardrail
-- [x] LLM-tagged ingest (Playwright scraper + pypdf/OCR) — coded
+- [x] **Live TMMIS scrape working** — 73 real deputations across Toronto community
+  councils, LLM-tagged and indexed (validated end-to-end in `rag` mode)
+- [x] Community-group filtering (drops applicants/agencies from `organized_groups`)
 - [x] Graceful degradation tiers; offline tests; eval harness
-- [ ] Run the full historical TMMIS scrape to build the real corpus
+- [ ] Backfill the full historical corpus (scraper proven — widen the meetingId scan)
 - [ ] Calibrated `expected_letter_count` regression on real volume data
 
 ## Notes for the team
