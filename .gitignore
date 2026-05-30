@@ -47,3 +47,4 @@ out/
 # Logs
 *.log
 logs/
+.claude/
