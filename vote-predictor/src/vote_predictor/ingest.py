@@ -79,9 +79,15 @@ def build_corpus(approved_per_refused: int = 3, min_desc_chars: int = 40) -> int
             continue
         (approved if outcome == "approved" else refused).append((r, outcome, desc))
 
-    # balance: keep all refused + the most recent N approved (sorted by date desc)
-    approved.sort(key=lambda x: x[0].get("DATE_SUBMITTED") or "", reverse=True)
-    keep = refused + approved[: approved_per_refused * max(len(refused), 1)]
+    # balance: keep all refused + an approved sample spread EVENLY across the date
+    # range (not just the most recent), so the model can't separate on era/temporal
+    # language instead of planning merit.
+    approved.sort(key=lambda x: x[0].get("DATE_SUBMITTED") or "")
+    n_keep = approved_per_refused * max(len(refused), 1)
+    if len(approved) > n_keep > 0:
+        step = len(approved) / n_keep
+        approved = [approved[int(i * step)] for i in range(n_keep)]
+    keep = refused + approved
 
     written = 0
     with CORPUS_PATH.open("w", encoding="utf-8") as out:

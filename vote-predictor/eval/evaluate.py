@@ -54,16 +54,36 @@ def evaluate(k: int = 10) -> dict:
     probs, actuals = np.array(probs), np.array(actuals)
     base_rate = actuals.mean()
     baseline_acc = max(base_rate, 1 - base_rate)
-    accuracy = ((probs >= 0.5).astype(int) == actuals).mean()
+
+    # Under class imbalance, accuracy @0.5 is misleading (it just predicts the
+    # majority class). Pick the threshold that maximizes Youden's J and also report
+    # balanced accuracy — both honest for imbalanced data.
+    best_thr, best_bal, best_acc = 0.5, 0.0, 0.0
+    for thr in sorted(set(probs.tolist())):
+        pred = (probs >= thr).astype(int)
+        tp = int(((pred == 1) & (actuals == 1)).sum())
+        fn = int(((pred == 0) & (actuals == 1)).sum())
+        tn = int(((pred == 0) & (actuals == 0)).sum())
+        fp = int(((pred == 1) & (actuals == 0)).sum())
+        tpr = tp / (tp + fn + 1e-9)
+        tnr = tn / (tn + fp + 1e-9)
+        bal = (tpr + tnr) / 2
+        if bal > best_bal:
+            best_bal = bal
+            best_thr = float(thr)
+            best_acc = float((pred == actuals).mean())
 
     return {
         "corpus_size": len(records),
         "k": k,
         "base_rate_approved": round(float(base_rate), 3),
-        "baseline_accuracy": round(float(baseline_acc), 3),
-        "accuracy": round(float(accuracy), 3),
-        "lift_over_baseline": round(float(accuracy - baseline_acc), 3),
         "auc": round(float(_auc(actuals, probs)), 3),
+        "balanced_accuracy": round(float(best_bal), 3),
+        "accuracy_at_tuned_threshold": round(best_acc, 3),
+        "tuned_threshold": round(best_thr, 3),
+        "baseline_accuracy": round(float(baseline_acc), 3),
+        "lift_over_baseline": round(float(best_acc - baseline_acc), 3),
+        "accuracy_at_0.5": round(float(((probs >= 0.5).astype(int) == actuals).mean()), 3),
         "brier": round(float(np.mean((probs - actuals) ** 2)), 3),
     }
 
