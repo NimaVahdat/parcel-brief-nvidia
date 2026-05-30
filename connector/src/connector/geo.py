@@ -27,6 +27,28 @@ WARDS_GEOJSON = DATA_DIR / "wards.geojson"
 DEFAULT_NEIGHBOURHOOD = "Toronto"
 _layers = None  # ((nbhd_tree, nbhd_geoms, nbhd_props), (ward_tree, ...)) | False
 
+_DEMO_ROSTERS = {
+    "toronto-east-york": [f"toronto{i}" for i in range(5)],
+    "north-york": [f"north{i}" for i in range(5)],
+    "scarborough": [f"scarborough{i}" for i in range(5)],
+    "etobicoke-york": [f"etobicoke{i}" for i in range(5)],
+}
+
+
+def _demo_committee(lat: float, lon: float) -> str:
+    """Approximate community council for offline demo/profile grounding."""
+    if lon > -79.30:
+        return "scarborough"
+    if lon < -79.47:
+        return "etobicoke-york"
+    if lat >= 43.70:
+        return "north-york"
+    return "toronto-east-york"
+
+
+def _demo_roster(lat: float, lon: float) -> list[str]:
+    return _DEMO_ROSTERS[_demo_committee(lat, lon)]
+
 
 def fetch_layers() -> tuple[int, int]:
     """Download the neighbourhood + ward layers (small). Returns (n_nbhd, n_ward)."""
@@ -109,8 +131,12 @@ def resolve_context(parcel_id: str) -> dict:
     Always returns a usable dict (defaults when data/shapely unavailable).
     """
     coords = _parse(parcel_id)
-    out = {"neighbourhood": DEFAULT_NEIGHBOURHOOD, "ward": None, "ward_name": None,
-           "councillors": ["Local Councillor"]}
+    out = {
+        "neighbourhood": DEFAULT_NEIGHBOURHOOD,
+        "ward": None,
+        "ward_name": None,
+        "councillors": _demo_roster(*coords) if coords else ["Local Councillor"],
+    }
     if coords is None:
         return out
 

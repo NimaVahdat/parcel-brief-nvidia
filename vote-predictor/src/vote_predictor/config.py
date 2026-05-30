@@ -68,8 +68,9 @@ def _env(*names: str, default: str) -> str:
 
 # --- data layout -----------------------------------------------------------------
 
-#: Root for all local data dumps. Override with VOTE_PREDICTOR_DATA_DIR.
-DATA_DIR = Path(os.environ.get("VOTE_PREDICTOR_DATA_DIR", "./data")).resolve()
+#: Root for this component's local data dumps. Override with VOTE_PREDICTOR_DATA_DIR.
+COMPONENT_ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = Path(os.environ.get("VOTE_PREDICTOR_DATA_DIR", COMPONENT_ROOT / "data")).resolve()
 RAW_DIR = DATA_DIR / "raw"
 PROCESSED_DIR = DATA_DIR / "processed"
 

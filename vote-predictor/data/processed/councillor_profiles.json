@@ -1,0 +1,202 @@
+{
+  "city0": {
+    "councillor_id": "city0",
+    "committee": "city-council",
+    "n_votes": 303,
+    "yes_rate": 0.274,
+    "propensity_logit": -0.9583,
+    "lean": "development-cautious"
+  },
+  "city1": {
+    "councillor_id": "city1",
+    "committee": "city-council",
+    "n_votes": 303,
+    "yes_rate": 0.465,
+    "propensity_logit": -0.1381,
+    "lean": "swing"
+  },
+  "city2": {
+    "councillor_id": "city2",
+    "committee": "city-council",
+    "n_votes": 303,
+    "yes_rate": 0.327,
+    "propensity_logit": -0.712,
+    "lean": "development-cautious"
+  },
+  "city3": {
+    "councillor_id": "city3",
+    "committee": "city-council",
+    "n_votes": 303,
+    "yes_rate": 0.495,
+    "propensity_logit": -0.021,
+    "lean": "swing"
+  },
+  "city4": {
+    "councillor_id": "city4",
+    "committee": "city-council",
+    "n_votes": 303,
+    "yes_rate": 0.518,
+    "propensity_logit": 0.0699,
+    "lean": "swing"
+  },
+  "etobicoke0": {
+    "councillor_id": "etobicoke0",
+    "committee": "etobicoke-york",
+    "n_votes": 305,
+    "yes_rate": 0.587,
+    "propensity_logit": 0.3438,
+    "lean": "swing"
+  },
+  "etobicoke1": {
+    "councillor_id": "etobicoke1",
+    "committee": "etobicoke-york",
+    "n_votes": 305,
+    "yes_rate": 0.357,
+    "propensity_logit": -0.5784,
+    "lean": "development-cautious"
+  },
+  "etobicoke2": {
+    "councillor_id": "etobicoke2",
+    "committee": "etobicoke-york",
+    "n_votes": 305,
+    "yes_rate": 0.492,
+    "propensity_logit": -0.0338,
+    "lean": "swing"
+  },
+  "etobicoke3": {
+    "councillor_id": "etobicoke3",
+    "committee": "etobicoke-york",
+    "n_votes": 305,
+    "yes_rate": 0.295,
+    "propensity_logit": -0.8568,
+    "lean": "development-cautious"
+  },
+  "etobicoke4": {
+    "councillor_id": "etobicoke4",
+    "committee": "etobicoke-york",
+    "n_votes": 305,
+    "yes_rate": 0.328,
+    "propensity_logit": -0.707,
+    "lean": "development-cautious"
+  },
+  "north0": {
+    "councillor_id": "north0",
+    "committee": "north-york",
+    "n_votes": 287,
+    "yes_rate": 0.449,
+    "propensity_logit": -0.2009,
+    "lean": "swing"
+  },
+  "north1": {
+    "councillor_id": "north1",
+    "committee": "north-york",
+    "n_votes": 287,
+    "yes_rate": 0.53,
+    "propensity_logit": 0.1149,
+    "lean": "swing"
+  },
+  "north2": {
+    "councillor_id": "north2",
+    "committee": "north-york",
+    "n_votes": 287,
+    "yes_rate": 0.659,
+    "propensity_logit": 0.6429,
+    "lean": "swing"
+  },
+  "north3": {
+    "councillor_id": "north3",
+    "committee": "north-york",
+    "n_votes": 287,
+    "yes_rate": 0.484,
+    "propensity_logit": -0.0633,
+    "lean": "swing"
+  },
+  "north4": {
+    "councillor_id": "north4",
+    "committee": "north-york",
+    "n_votes": 287,
+    "yes_rate": 0.453,
+    "propensity_logit": -0.1871,
+    "lean": "swing"
+  },
+  "scarborough0": {
+    "councillor_id": "scarborough0",
+    "committee": "scarborough",
+    "n_votes": 281,
+    "yes_rate": 0.641,
+    "propensity_logit": 0.5654,
+    "lean": "swing"
+  },
+  "scarborough1": {
+    "councillor_id": "scarborough1",
+    "committee": "scarborough",
+    "n_votes": 281,
+    "yes_rate": 0.641,
+    "propensity_logit": 0.5654,
+    "lean": "swing"
+  },
+  "scarborough2": {
+    "councillor_id": "scarborough2",
+    "committee": "scarborough",
+    "n_votes": 281,
+    "yes_rate": 0.53,
+    "propensity_logit": 0.1174,
+    "lean": "swing"
+  },
+  "scarborough3": {
+    "councillor_id": "scarborough3",
+    "committee": "scarborough",
+    "n_votes": 281,
+    "yes_rate": 0.473,
+    "propensity_logit": -0.1066,
+    "lean": "swing"
+  },
+  "scarborough4": {
+    "councillor_id": "scarborough4",
+    "committee": "scarborough",
+    "n_votes": 281,
+    "yes_rate": 0.53,
+    "propensity_logit": 0.1174,
+    "lean": "swing"
+  },
+  "toronto0": {
+    "councillor_id": "toronto0",
+    "committee": "toronto-east-york",
+    "n_votes": 324,
+    "yes_rate": 0.522,
+    "propensity_logit": 0.0837,
+    "lean": "swing"
+  },
+  "toronto1": {
+    "councillor_id": "toronto1",
+    "committee": "toronto-east-york",
+    "n_votes": 324,
+    "yes_rate": 0.571,
+    "propensity_logit": 0.28,
+    "lean": "swing"
+  },
+  "toronto2": {
+    "councillor_id": "toronto2",
+    "committee": "toronto-east-york",
+    "n_votes": 324,
+    "yes_rate": 0.472,
+    "propensity_logit": -0.111,
+    "lean": "swing"
+  },
+  "toronto3": {
+    "councillor_id": "toronto3",
+    "committee": "toronto-east-york",
+    "n_votes": 324,
+    "yes_rate": 0.404,
+    "propensity_logit": -0.3829,
+    "lean": "swing"
+  },
+  "toronto4": {
+    "councillor_id": "toronto4",
+    "committee": "toronto-east-york",
+    "n_votes": 324,
+    "yes_rate": 0.454,
+    "propensity_logit": -0.1843,
+    "lean": "swing"
+  }
+}
