@@ -114,24 +114,26 @@ def mitigation_for(concern: str) -> str:
     return CONCERN_MITIGATIONS.get(concern, f"address resident concerns about {concern}")
 
 
-# Names that are applicants/owners/corporations or the committee itself — not
-# community opposition groups. Deputation text mentions these constantly, and the
-# tagger sometimes captures them, so filter them out of `organized_groups`.
+# `organized_groups` should be genuine community opposition organizations, not the
+# applicants/agencies/corporations a deputation happens to mention. Rather than
+# blacklist every corporate form, keep only names that look like community groups.
 import re as _re
 
-_NOISE_GROUP_RE = _re.compile(
-    r"\b(inc|incorporated|ltd|limited|llc|llp|l\.p\.|reit|corp|corporation|"
-    r"holdings|properties|developments?|realty|gp\s+inc|bousfields|"
-    r"architects?|planning\s+partnership|consultants?)\b"
-    r"|\d{5,}\s*ontario|^\s*\d{5,}"
-    r"|community\s+council|city\s+council|planning\s+and\s+housing",
+_COMMUNITY_GROUP_RE = _re.compile(
+    r"residents?\s+association|residents?\s+network|residents?\s+group|"
+    r"ratepayers|neighbou?rhood\s+association|tenants?\s+(association|network)|"
+    r"community\s+association|coalition|friends\s+of|\bbia\b|"
+    r"business\s+improvement|preservation\s+society|heritage\s+society|"
+    r"residents'?\s+committee|community\s+council\s+of|action\s+committee",
     _re.I,
 )
+# ...but never the decision body itself.
+_NOT_GROUP_RE = _re.compile(r"toronto\s+and\s+east\s+york|city\s+council|standing\s+committee", _re.I)
 
 
-def is_noise_group(name: str) -> bool:
-    """True if a 'group' name is really an applicant/corporation/committee."""
-    return bool(_NOISE_GROUP_RE.search(name))
+def is_community_group(name: str) -> bool:
+    """True if a name looks like a genuine community opposition organization."""
+    return bool(_COMMUNITY_GROUP_RE.search(name)) and not _NOT_GROUP_RE.search(name)
 
 
 def canonical_group(name: str) -> str:

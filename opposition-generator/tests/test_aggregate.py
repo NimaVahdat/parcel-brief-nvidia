@@ -65,15 +65,20 @@ def test_aggregate_groups_ranked_by_frequency() -> None:
     assert groups[0] == "Friends of Trinity-Bellwoods"
 
 
-def test_aggregate_groups_filters_corporate_noise() -> None:
+def test_aggregate_groups_keeps_only_community_orgs() -> None:
     retrieved = [
         _retrieved([], ["Liberty Village Residents Association"]),
-        _retrieved([], ["939923 Ontario Limited"]),
-        _retrieved([], ["Allied Properties REIT"]),
-        _retrieved([], ["Toronto and East York Community Council"]),
+        _retrieved([], ["York Quay Neighbourhood Association"]),
+        _retrieved([], ["939923 Ontario Limited"]),     # applicant
+        _retrieved([], ["Allied Properties REIT"]),      # corporation
+        _retrieved([], ["NAV CANADA"]),                  # agency
+        _retrieved([], ["Toronto and East York Community Council"]),  # committee
     ]
     groups = aggregate_groups(retrieved)
-    assert groups == ["Liberty Village Residents Association"]
+    assert set(groups) == {
+        "Liberty Village Residents Association",
+        "York Quay Neighbourhood Association",
+    }
 
 
 def test_letter_count_scales_with_sensitivity() -> None:

@@ -13,7 +13,7 @@ from collections import defaultdict
 from opposition_generator.forecast.taxonomy import (
     CONCERN_MITIGATIONS,
     canonical_group,
-    is_noise_group,
+    is_community_group,
     mitigation_for,
 )
 from opposition_generator.index.retrieve import Retrieved
@@ -47,7 +47,7 @@ def aggregate_groups(retrieved: list[Retrieved]) -> list[str]:
     for r in retrieved:
         for g in r.deputation.groups:
             g = g.strip()
-            if g and not is_noise_group(g):
+            if g and is_community_group(g):
                 counts[canonical_group(g)] += 1
     return [g for g, _ in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
 
