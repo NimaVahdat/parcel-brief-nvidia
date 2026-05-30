@@ -35,12 +35,23 @@ _APP_TYPE_RE = re.compile(
 
 
 def _outcome(title: str, status: str) -> str | None:
-    t = title.lower()
-    if "refus" in t:
+    """Outcome class from title + council item status.
+
+    Toronto approves nearly every planning item that reaches a decision, so the
+    real two-class signal is *clean approval* vs *council-imposed amendments*:
+      - refused (rare)            -> "refused"
+      - AMENDED (approved w/ changes, i.e. contested) -> "amended"
+      - ADOPTED / WO_RECS (approved as proposed)      -> "approved"
+    `approval_probability` is then P(approved as proposed). POSTPONE/deferrals are
+    skipped (no decision yet).
+    """
+    if "refus" in title.lower():
         return "refused"
-    if "approv" in t:
+    if status == "AMENDED":
+        return "amended"
+    if status in ("ADOPTED", "WO_RECS", "CARRIED"):
         return "approved"
-    return None  # ambiguous title -> skip for a clean labeled set
+    return None
 
 
 def _app_type(title: str) -> str:
