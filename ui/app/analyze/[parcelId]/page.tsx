@@ -1,5 +1,6 @@
 import Link from "next/link";
 import AnalysisView from "@/components/AnalysisView";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const dynamic = "force-dynamic";
 
@@ -32,12 +33,15 @@ export default function AnalyzePage({
               </code>
             </div>
           </div>
-          <Link
-            href="/"
-            className="text-sm text-slate-500 transition-colors hover:text-slate-900"
-          >
-            ← New analysis
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="text-sm text-slate-500 transition-colors hover:text-slate-900"
+            >
+              ← New analysis
+            </Link>
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 

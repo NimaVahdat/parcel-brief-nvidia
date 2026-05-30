@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const ParcelMap = dynamic(() => import("@/components/ParcelMap"), {
   ssr: false,
@@ -55,10 +56,11 @@ export default function Home() {
         <span className="hidden text-sm text-slate-500 sm:block">
           Toronto Site Pre-Acquisition Analysis
         </span>
-        <div className="ml-auto">
-          <span className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-400">
+        <div className="ml-auto flex items-center gap-2">
+          <span className="hidden rounded border border-slate-200 px-2 py-1 text-xs text-slate-400 sm:inline">
             NVIDIA Spark Hack · May 2026
           </span>
+          <ThemeToggle />
         </div>
       </header>
 

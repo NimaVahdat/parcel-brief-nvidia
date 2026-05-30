@@ -194,11 +194,20 @@ function DesignComparison({
   const totalUnits = (opt: Massing) =>
     Object.values(opt.unit_mix).reduce((sum, n) => sum + n, 0);
 
-  const rows: { label: string; getValue: (opt: Massing) => string }[] = [
-    { label: "Height", getValue: (o) => `${o.height_m} m` },
+  const rows: {
+    label: string;
+    getValue: (opt: Massing) => string;
+    getNum: (opt: Massing) => number;
+  }[] = [
+    {
+      label: "Height",
+      getValue: (o) => `${o.height_m} m`,
+      getNum: (o) => o.height_m,
+    },
     {
       label: "Gross floor area",
       getValue: (o) => `${o.total_gfa_m2.toLocaleString()} m²`,
+      getNum: (o) => o.total_gfa_m2,
     },
     {
       label: "Residential units",
@@ -206,15 +215,18 @@ function DesignComparison({
         const t = totalUnits(o);
         return t > 0 ? String(t) : "—";
       },
+      getNum: totalUnits,
     },
     {
       label: "Affordable units",
       getValue: (o) => String(o.affordable_units),
+      getNum: (o) => o.affordable_units,
     },
     {
       label: "Retail",
       getValue: (o) =>
         o.retail_sqft > 0 ? `${o.retail_sqft.toLocaleString()} sqft` : "None",
+      getNum: (o) => o.retail_sqft,
     },
   ];
 
@@ -223,7 +235,7 @@ function DesignComparison({
   // Single option — show a tidy summary panel instead of a comparison table
   if (options.length === 1) {
     return (
-      <div className="mt-5 border-t border-slate-100 pt-5">
+      <div className="mt-5 animate-fade-in-up border-t border-slate-100 pt-5">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
           Design summary
         </p>
@@ -241,9 +253,11 @@ function DesignComparison({
     );
   }
 
-  // Multiple options — side-by-side comparison table
+  // Multiple options — side-by-side comparison table with directional deltas
+  const selectedNums = rows.map((r) => r.getNum(options[selectedIdx]));
+
   return (
-    <div className="mt-5 border-t border-slate-100 pt-5">
+    <div className="mt-5 animate-fade-in-up border-t border-slate-100 pt-5">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
         Option {selectedIdx + 1} compared to alternatives
       </p>
@@ -255,7 +269,10 @@ function DesignComparison({
                 Metric
               </th>
               {options.map((_, idx) => (
-                <th key={idx} className="px-3 py-2 text-right text-xs font-semibold">
+                <th
+                  key={idx}
+                  className="px-3 py-2 text-right text-xs font-semibold"
+                >
                   {idx === selectedIdx ? (
                     <span className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-blue-700">
                       Option {idx + 1}
@@ -268,26 +285,131 @@ function DesignComparison({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 bg-white">
-            {rows.map(({ label, getValue }) => (
+            {rows.map(({ label, getValue, getNum }, rowIdx) => (
               <tr key={label}>
                 <td className="px-3 py-2.5 text-xs text-slate-500">{label}</td>
-                {options.map((opt, idx) => (
-                  <td
-                    key={idx}
-                    className={`px-3 py-2.5 text-right text-xs ${
-                      idx === selectedIdx
-                        ? "font-bold text-blue-800"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    {getValue(opt)}
-                  </td>
-                ))}
+                {options.map((opt, idx) => {
+                  const isSelected = idx === selectedIdx;
+                  const delta = isSelected
+                    ? null
+                    : getNum(opt) - selectedNums[rowIdx];
+                  const hasDelta = delta !== null && delta !== 0;
+                  return (
+                    <td
+                      key={idx}
+                      className={`px-3 py-2.5 text-right text-xs ${
+                        isSelected
+                          ? "font-bold text-blue-800"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {getValue(opt)}
+                      {hasDelta && (
+                        <span
+                          className={`ml-1 text-[10px] font-semibold ${
+                            delta > 0 ? "text-emerald-500" : "text-red-400"
+                          }`}
+                          title={`${delta > 0 ? "+" : ""}${delta.toFixed(1)} vs selected`}
+                        >
+                          {delta > 0 ? "↑" : "↓"}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+// ─── selected option summary ─────────────────────────────────────────────────
+
+function SelectedOptionSummary({
+  option,
+  idx,
+}: {
+  option: Massing;
+  idx: number;
+}) {
+  const totalResidential = Object.values(option.unit_mix).reduce(
+    (s, n) => s + n,
+    0
+  );
+
+  const metrics = [
+    { label: "Height", value: `${option.height_m} m` },
+    {
+      label: "Gross Floor Area",
+      value: `${option.total_gfa_m2.toLocaleString()} m²`,
+    },
+    {
+      label: "Residential Units",
+      value: totalResidential > 0 ? String(totalResidential) : "—",
+    },
+    { label: "Affordable Units", value: String(option.affordable_units) },
+    {
+      label: "Retail",
+      value:
+        option.retail_sqft > 0
+          ? `${option.retail_sqft.toLocaleString()} sqft`
+          : "None",
+    },
+  ];
+
+  return (
+    <div className="mt-4 animate-fade-in-up rounded-xl border-2 border-blue-200 bg-blue-50 p-5">
+      {/* Header row */}
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-base font-bold text-blue-900">
+            Option {idx + 1} — Selected Design
+          </p>
+          <p className="mt-0.5 text-xs text-blue-600">
+            {option.massing_id}
+          </p>
+        </div>
+        <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
+          Active
+        </span>
+      </div>
+
+      {/* Key metrics grid */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        {metrics.map(({ label, value }) => (
+          <div
+            key={label}
+            className="rounded-lg border border-blue-100 bg-white px-3 py-2.5 shadow-sm"
+          >
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              {label}
+            </p>
+            <p className="mt-0.5 text-lg font-bold text-blue-800">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Unit mix */}
+      {Object.keys(option.unit_mix).length > 0 && (
+        <div className="mt-3 border-t border-blue-100 pt-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
+            Unit Mix
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(option.unit_mix).map(([type, count]) => (
+              <span
+                key={type}
+                className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-800"
+              >
+                {count}× {type}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -305,16 +427,17 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
 
   const [selectedOption, setSelectedOption] = useState(0);
 
-  // Animated values for key metric cards
+  // Animated values — longer durations make the count-up clearly visible
   const animApprovalPct = useCountUp(
-    Math.round(approval.approval_probability * 100)
+    Math.round(approval.approval_probability * 100),
+    1600
   );
-  const animIrr5y = useCountUp(fin.irr_5y * 100, 1100);
-  const animCost = useCountUp(fin.construction_cost, 1100);
-  const animConfidence = useCountUp(Math.round(rec.confidence * 100), 900);
+  const animIrr5y = useCountUp(fin.irr_5y * 100, 1600);
+  const animCost = useCountUp(fin.construction_cost, 1800);
+  const animConfidence = useCountUp(Math.round(rec.confidence * 100), 1400);
   const animApprovalPctExec = useCountUp(
     Math.round(approval.approval_probability * 100),
-    900
+    1400
   );
 
   // Recommendation colour scheme
@@ -878,8 +1001,8 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
           style={{ animation: "fadeInUp 0.45s ease-out 0.35s both" }}
         >
           <p className="mb-4 text-sm text-slate-500">
-            Select a design option to view its details and compare it against
-            the alternatives.
+            Click an option to see its full specification. The summary below
+            updates immediately.
           </p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {massingOptions.map((option, idx) => {
@@ -891,8 +1014,8 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                   onClick={() => setSelectedOption(idx)}
                   className={`rounded-xl border p-4 text-left transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                     isSelected
-                      ? "border-blue-500 bg-blue-50 shadow-md ring-2 ring-blue-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm"
+                      ? "scale-[1.02] border-blue-500 bg-blue-50 shadow-lg ring-2 ring-blue-200"
+                      : "border-slate-200 bg-white hover:scale-[1.01] hover:border-slate-300 hover:shadow-sm"
                   }`}
                 >
                   <div className="mb-3 flex items-center justify-between">
@@ -981,7 +1104,21 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
             })}
           </div>
 
-          <DesignComparison options={massingOptions} selectedIdx={selectedOption} />
+          {/* Selected option summary — updates in-place when option changes */}
+          {massingOptions[selectedOption] && (
+            <SelectedOptionSummary
+              option={massingOptions[selectedOption]}
+              idx={selectedOption}
+            />
+          )}
+
+          {/* Side-by-side comparison table (multi-option only) */}
+          {massingOptions.length > 1 && (
+            <DesignComparison
+              options={massingOptions}
+              selectedIdx={selectedOption}
+            />
+          )}
         </Card>
       )}
     </div>
