@@ -20,6 +20,24 @@ def fetch_zoning_cmd() -> None:
     print(f"Downloaded {n_area} zoning-area + {n_height} height-overlay polygons")
 
 
+@app.command("fetch-heritage")
+def fetch_heritage_cmd() -> None:
+    """Download the Heritage Register so lookup() returns real heritage status."""
+    from site_proforma.gis import fetch_heritage
+
+    fetch_heritage()
+    print("Downloaded heritage register")
+
+
+@app.command("fetch-parcels")
+def fetch_parcels_cmd() -> None:
+    """Download Property Boundaries (~314 MB) for real parcel footprints."""
+    from site_proforma.gis import fetch_parcels
+
+    size = fetch_parcels()
+    print(f"Downloaded property boundaries ({size / 1e6:.0f} MB)")
+
+
 @app.command("lookup")
 def lookup_cmd(parcel_id: str = typer.Option("43.6532_-79.3832", "--parcel-id")) -> None:
     """Look up the site envelope + constraints for a parcel (UI lat_lng point)."""

@@ -166,7 +166,156 @@ def lookup_envelope(parcel_id: str, lat: float, lon: float) -> ZoningEnvelope | 
 
 def _num(v) -> float | None:
     try:
-        f = float(v)
-        return f
+        return float(v)
     except (TypeError, ValueError):
         return None
+
+
+def _haversine_m(lat1, lon1, lat2, lon2) -> float:
+    import math
+    r = 6371000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+# --------------------------------------------------------------------------- #
+# Heritage Register — WGS84 address points (shapefile)
+# --------------------------------------------------------------------------- #
+HERITAGE_URL = ("https://ckan0.cf.opendata.inter.prod-toronto.ca/dataset/"
+                "e41da515-5ad1-4bc3-85ea-18ec9e55cd33/resource/"
+                "108b1080-d048-439f-a9e8-e8d6cd81bddb/download/"
+                "heritage_register_address_points_wgs84.zip")
+HERITAGE_DIR = DATA_DIR / "heritage"
+_heritage = None  # list[(lon, lat, status)]
+
+
+def fetch_heritage() -> int:
+    import io
+    import zipfile
+
+    import httpx
+    HERITAGE_DIR.mkdir(parents=True, exist_ok=True)
+    with httpx.Client(timeout=120, follow_redirects=True) as c:
+        r = c.get(HERITAGE_URL)
+        r.raise_for_status()
+    zipfile.ZipFile(io.BytesIO(r.content)).extractall(HERITAGE_DIR)
+    return len(list(HERITAGE_DIR.glob("*.shp")))
+
+
+def _heritage_class(rec: dict) -> str:
+    status = str(rec.get("STATUS") or "").lower()
+    if rec.get("DESIGNATED") or "part iv" in status or "part v" in status or "designat" in status:
+        return "designated"
+    return "listed"
+
+
+def _load_heritage() -> None:
+    global _heritage
+    shps = list(HERITAGE_DIR.glob("*.shp"))
+    if not shps:
+        _heritage = []
+        return
+    try:
+        import shapefile  # pyshp
+    except ImportError:
+        _heritage = []
+        return
+    reader = shapefile.Reader(str(shps[0]))
+    fields = [f[0] for f in reader.fields[1:]]
+    pts = []
+    for sr in reader.shapeRecords():
+        if not sr.shape.points:
+            continue
+        lon, lat = sr.shape.points[0]
+        pts.append((lon, lat, _heritage_class(dict(zip(fields, sr.record)))))
+    _heritage = pts
+
+
+def heritage_status(lat: float, lon: float, radius_m: float = 40.0) -> str:
+    """Nearest heritage address point within radius -> its status, else 'none'."""
+    global _heritage
+    if _heritage is None:
+        try:
+            _load_heritage()
+        except Exception:
+            _heritage = []
+    best, best_d = "none", radius_m
+    for plon, plat, status in (_heritage or []):
+        if abs(plat - lat) > 0.0006 or abs(plon - lon) > 0.0009:  # ~65 m prefilter
+            continue
+        d = _haversine_m(lat, lon, plat, plon)
+        if d <= best_d:
+            best_d, best = d, status
+    return best
+
+
+# --------------------------------------------------------------------------- #
+# Property Boundaries — parcel footprints (GeoJSON polygons, WGS84)
+# --------------------------------------------------------------------------- #
+PARCELS_URL = ("https://ckan0.cf.opendata.inter.prod-toronto.ca/dataset/"
+               "1acaa8b0-f235-4df6-8305-02025ccdeb07/resource/"
+               "4d4943a6-98ec-4442-9ced-f600f5bc8d27/download/property-boundaries-4326.geojson")
+PARCELS_GEOJSON = DATA_DIR / "property_boundaries.geojson"
+_parcels = None  # (STRtree, geoms) | False
+
+
+def fetch_parcels() -> int:
+    """Download the ~314 MB Property Boundaries layer (streamed). Returns byte size."""
+    import httpx
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with httpx.Client(timeout=600, follow_redirects=True) as c:
+        with c.stream("GET", PARCELS_URL) as r:
+            r.raise_for_status()
+            with PARCELS_GEOJSON.open("wb") as f:
+                for chunk in r.iter_bytes(1 << 20):
+                    f.write(chunk)
+    return PARCELS_GEOJSON.stat().st_size
+
+
+def _load_parcels() -> None:
+    global _parcels
+    if not PARCELS_GEOJSON.exists():
+        _parcels = False
+        return
+    try:
+        from shapely.geometry import shape
+        from shapely.strtree import STRtree
+    except ImportError:
+        _parcels = False
+        return
+    feats = json.loads(PARCELS_GEOJSON.read_text())["features"]
+    geoms = []
+    for f in feats:
+        g = f.get("geometry")
+        if not g:
+            continue
+        if isinstance(g, str):
+            g = json.loads(g)
+        try:
+            geoms.append(shape(g))
+        except Exception:
+            continue
+    _parcels = (STRtree(geoms), geoms)
+
+
+def parcel_footprint(lat: float, lon: float) -> list | None:
+    """Real parcel polygon containing the point -> [(lon,lat), ...], else None."""
+    global _parcels
+    if _parcels is None:
+        try:
+            _load_parcels()
+        except Exception:
+            _parcels = False
+    if not _parcels:
+        return None
+    from shapely.geometry import Point
+    tree, geoms = _parcels
+    point = Point(lon, lat)
+    for i in tree.query(point):
+        g = geoms[int(i)]
+        if g.covers(point):
+            poly = g if g.geom_type == "Polygon" else max(g.geoms, key=lambda p: p.area)
+            return [(round(x, 6), round(y, 6)) for x, y in poly.exterior.coords]
+    return None

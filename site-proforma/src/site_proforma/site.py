@@ -85,8 +85,14 @@ def _constraints(parcel_id: str, lat: float, lon: float, height_m: float) -> Sit
         ["5h equinox sunlight required on adjacent sidewalks; shadow study required"]
         if height_m >= 30 else []
     )
+    heritage = "none"
+    try:
+        from site_proforma.gis import heritage_status
+        heritage = heritage_status(lat, lon)
+    except Exception:
+        heritage = "none"
     return SiteConstraints(
-        parcel_id=parcel_id, heritage_status="none", tree_canopy_area_m2=0.0,
+        parcel_id=parcel_id, heritage_status=heritage, tree_canopy_area_m2=0.0,
         sun_shadow_rules=sun_shadow, conservation_overlays=[],
         transit_distance_m=transit, easements=[],
     )
@@ -112,6 +118,15 @@ def lookup(parcel_id: str) -> SiteData:
         envelope = None
     if envelope is None:
         envelope = _zoning_envelope(parcel_id, lat, lon)
+
+    # real parcel footprint (Property Boundaries) when available
+    try:
+        from site_proforma.gis import parcel_footprint
+        fp = parcel_footprint(lat, lon)
+        if fp:
+            envelope.footprint_polygon = fp
+    except Exception:
+        pass
 
     constraints = _constraints(parcel_id, lat, lon, envelope.max_height_m)
     return SiteData(zoning_envelope=envelope, constraints=constraints)
