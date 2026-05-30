@@ -160,5 +160,5 @@ def render(envelope, massing, out_html: str) -> str:
     """Render the massing to a standalone HTML file; returns the path."""
     fig = make_figure(envelope, massing)
     fig.write_html(out_html, include_plotlyjs="cdn", auto_open=False,
-                   config={"displmodebar": False})
+                   config={"displayModeBar": False, "responsive": True})
     return out_html
