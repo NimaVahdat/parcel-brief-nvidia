@@ -1,0 +1,180 @@
+{
+  "project_name": "Downtown Glass Office Skyscraper",
+  "zoning_category": "CR5.0(c5.0;r2.0)",
+  "lot_details": {
+    "lot_area_sqm": 2000.0,
+    "lot_frontage_m": 40.0,
+    "lot_depth_m": 50.0,
+    "orientation_deg": 0
+  },
+  "building_specifications": {
+    "building_type": "Office Tower",
+    "architectural_style": "Modern Curtain-Wall High-Rise",
+    "number_of_storeys": 40,
+    "building_height_m": 160.0,
+    "gross_floor_area_sqm": 58000.0,
+    "lot_coverage_percent": 70.0,
+    "floor_space_index": 29.0,
+    "podium_storeys": 4,
+    "tower_storeys": 36,
+    "mechanical_penthouse_storeys": 1
+  },
+  "setbacks_m": {
+    "front_yard": 4.0,
+    "rear_yard": 6.0,
+    "side_yard_east": 2.0,
+    "side_yard_west": 2.0,
+    "tower_stepback_front_at_storey_4": 6.0,
+    "tower_stepback_rear_at_storey_4": 6.0,
+    "tower_stepback_side_east_at_storey_4": 4.0,
+    "tower_stepback_side_west_at_storey_4": 4.0,
+    "upper_stepback_front_at_storey_12": 3.0,
+    "upper_stepback_rear_at_storey_12": 3.0
+  },
+  "massing": {
+    "footprint_shape": "rectangular",
+    "podium": { "width_m": 36.0, "depth_m": 44.0, "height_m": 18.1, "storeys": 4 },
+    "tower": { "width_m": 28.0, "depth_m": 32.0, "offset_x_m": 4.0, "offset_y_m": 6.0, "height_m": 136.9, "storeys": 36 },
+    "mechanical_penthouse": { "width_m": 16.0, "depth_m": 18.0, "offset_x_m": 6.0, "offset_y_m": 7.0, "height_m": 5.0 }
+  },
+  "vertical_zones": [
+    { "id": "podium", "storeys": [1, 2, 3, 4], "use": ["lobby", "retail", "office", "office"], "facade_system": "curtain_wall", "wall_material": "granite_panel", "wall_color": "#2e2e34", "accent_color": "#9aa6b2", "window_color": "#16202c", "spandrel_color": "#22262c" },
+    { "id": "tower_low", "storeys": [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], "use": "office", "facade_system": "curtain_wall", "wall_material": "glass_panel", "wall_color": "#9fc0d6", "spandrel_color": "#28384a" },
+    { "id": "tower_mid", "storeys": [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30], "use": "office", "facade_system": "curtain_wall", "wall_material": "glass_panel", "wall_color": "#8fb4cf", "spandrel_color": "#22324a" },
+    { "id": "tower_top", "storeys": [31, 32, 33, 34, 35, 36, 37, 38, 39, 40], "use": "office_premium", "facade_system": "curtain_wall", "wall_material": "glass_panel", "wall_color": "#b6d6ec", "spandrel_color": "#1c2c40", "corner_glazing": true }
+  ],
+  "storeys": [
+    { "level": 1,  "height_m": 5.5, "floor_to_floor_m": 5.5, "use": "lobby",  "zone": "podium" },
+    { "level": 2,  "height_m": 4.2, "floor_to_floor_m": 4.2, "use": "retail", "zone": "podium" },
+    { "level": 3,  "height_m": 4.2, "floor_to_floor_m": 4.2, "use": "office", "zone": "podium" },
+    { "level": 4,  "height_m": 4.2, "floor_to_floor_m": 4.2, "use": "office", "zone": "podium" },
+    { "level": 5,  "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low", "stepback": true },
+    { "level": 6,  "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 7,  "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 8,  "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 9,  "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 10, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 11, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 12, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 13, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 14, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 15, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 16, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 17, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 18, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_low" },
+    { "level": 19, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 20, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 21, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 22, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 23, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 24, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 25, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 26, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 27, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 28, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 29, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 30, "height_m": 3.8, "floor_to_floor_m": 3.8, "use": "office", "zone": "tower_mid" },
+    { "level": 31, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top", "stepback": true },
+    { "level": 32, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 33, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 34, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 35, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 36, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 37, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 38, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 39, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 40, "height_m": 3.9, "floor_to_floor_m": 3.9, "use": "office_premium", "zone": "tower_top" },
+    { "level": 41, "height_m": 5.0, "floor_to_floor_m": 5.0, "use": "mechanical", "zone": "mechanical_penthouse" }
+  ],
+  "facade_grid": {
+    "podium_bay_width_m": 6.0,
+    "tower_bay_width_m": 3.0,
+    "curtain_wall_mullion_depth_m": 0.12,
+    "curtain_wall_mullion_color": "#161620",
+    "vision_glass_tint": "blue_grey",
+    "vision_glass_reflectance": 0.22,
+    "spandrel_glass_height_m": 0.9,
+    "parapet_height_m": 1.4
+  },
+  "facades": {
+    "front": {
+      "podium_retail_openings": [
+        { "storey": 1, "position_frac": 0.12, "width_m": 5.0, "height_m": 5.0, "type": "storefront_glass" },
+        { "storey": 1, "position_frac": 0.32, "width_m": 5.0, "height_m": 5.0, "type": "storefront_glass" },
+        { "storey": 1, "position_frac": 0.5,  "width_m": 6.0, "height_m": 5.2, "type": "lobby_entrance" },
+        { "storey": 1, "position_frac": 0.68, "width_m": 5.0, "height_m": 5.0, "type": "storefront_glass" },
+        { "storey": 1, "position_frac": 0.88, "width_m": 5.0, "height_m": 5.0, "type": "storefront_glass" }
+      ],
+      "lobby_entrance": {
+        "position_frac": 0.5,
+        "width_m": 6.0,
+        "height_m": 5.2,
+        "canopy_depth_m": 2.5,
+        "canopy_material": "steel_glass",
+        "door_type": "revolving",
+        "door_color": "#9aa6b2"
+      }
+    },
+    "rear": {
+      "podium_windows": [
+        { "storey": 2, "position_frac": 0.3, "width_m": 2.4, "height_m": 2.4, "type": "fixed" },
+        { "storey": 2, "position_frac": 0.7, "width_m": 2.4, "height_m": 2.4, "type": "fixed" },
+        { "storey": 3, "position_frac": 0.5, "width_m": 2.4, "height_m": 2.4, "type": "fixed" }
+      ]
+    },
+    "east": {
+      "tower_windows": {
+        "storeys": [5, 10, 15, 20, 25, 30, 35, 40],
+        "positions_frac": [0.3, 0.7],
+        "width_m": 2.0,
+        "height_m": 2.6,
+        "type": "curtain_wall_unit"
+      }
+    },
+    "west": {
+      "tower_windows": {
+        "storeys": [5, 10, 15, 20, 25, 30, 35, 40],
+        "positions_frac": [0.3, 0.7],
+        "width_m": 2.0,
+        "height_m": 2.6,
+        "type": "curtain_wall_unit"
+      }
+    }
+  },
+  "roof": {
+    "type": "flat",
+    "material": "tpo_membrane",
+    "color": "#7c7c7c",
+    "green_roof_present": true,
+    "green_roof_area_sqm": 320.0,
+    "green_roof_zone": "podium_top",
+    "parapet": { "height_m": 1.4, "material": "metal_coping", "color": "#1c2c40" },
+    "mechanical_penthouse": {
+      "present": true,
+      "width_m": 16.0,
+      "depth_m": 18.0,
+      "height_m": 5.0,
+      "offset_x_m": 6.0,
+      "offset_y_m": 7.0,
+      "cladding": "metal_panel",
+      "color": "#34414f",
+      "louver_present": true,
+      "louver_color": "#46566a"
+    },
+    "rooftop_equipment": [
+      { "type": "cooling_tower", "count": 2, "height_m": 3.0, "width_m": 3.5 },
+      { "type": "exhaust_stack", "count": 3, "height_m": 2.0, "diameter_m": 0.4 },
+      { "type": "hvac_unit", "count": 3, "height_m": 2.2, "width_m": 2.5 }
+    ]
+  },
+  "site": {
+    "driveway": { "present": true, "side": "east", "width_m": 6.0, "material": "asphalt", "color": "#454545" },
+    "landscaping": { "grass_color": "#7fb069", "planted_boulevard": true },
+    "trees": [
+      { "x_m": 4.0,  "y_m": 2.5, "canopy_r_m": 2.6, "height_m": 9.0,  "species": "honey_locust" },
+      { "x_m": 14.0, "y_m": 2.5, "canopy_r_m": 2.6, "height_m": 9.0,  "species": "honey_locust" },
+      { "x_m": 26.0, "y_m": 2.5, "canopy_r_m": 2.6, "height_m": 9.0,  "species": "honey_locust" },
+      { "x_m": 36.0, "y_m": 2.5, "canopy_r_m": 2.6, "height_m": 9.0,  "species": "honey_locust" }
+    ]
+  }
+}

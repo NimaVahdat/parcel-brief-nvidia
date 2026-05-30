@@ -27,3 +27,11 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "W"]
 ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Vendored 3D-render engine (from the nvidia-hack prototype). Keep the proven
+# rendering math intact rather than refactor it to satisfy style-only lints.
+"**/massing_generator/builder/build_3d.py" = ["B905"]
+"**/massing_generator/builder/render_pyvista.py" = ["B007", "B023", "E702", "E731", "E741", "F841", "UP031"]
+"**/massing_generator/builder/textures.py" = ["B905", "E702"]
+"**/massing_generator/builder/validate_building.py" = ["E741"]
