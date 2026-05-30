@@ -56,8 +56,10 @@ York residential parcel → 10 m / FSI 0.6.
 ## Run it
 
 ```bash
-pip install -e 'site-proforma[gis]'     # gis extra = shapely + httpx for real zoning
-site-proforma fetch-zoning              # download the City zoning layers (once)
+pip install -e 'site-proforma[gis]'     # gis extra = shapely + httpx + pyshp
+site-proforma fetch-zoning              # City zoning layers (once)
+site-proforma fetch-heritage            # Heritage Register (once)
+site-proforma fetch-parcels             # Property Boundaries ~314 MB (once)
 site-proforma lookup --parcel-id 43.6486_-79.3806
 site-proforma proforma --parcel-id 43.6486_-79.3806
 uvicorn site_proforma.service:app --port 8004     # optional service
@@ -87,13 +89,18 @@ uvicorn site_proforma.service:app --port 8004     # optional service
 
 ## Honest scope
 
-- `lookup()` zoning (height / FSI / uses) is **real** — from the City Zoning By-law
-  layers — with a graceful estimate fallback when the data isn't downloaded. Transit
-  distance is real.
-- `calculate()` is a **real, defensible DCF**; its cost/rent/cap-rate inputs are
-  tunable Toronto benchmarks (not a live per-parcel feed).
-- Still estimated: parcel footprint geometry (a ~20 m placeholder; the real parcel
-  layer is separate) and heritage status (spatial join pending).
+`lookup()` is now backed by **real City of Toronto open data** (download once with the
+`fetch-*` commands; graceful fallback when absent):
+
+- **Zoning** (height / FSI / uses) — Zoning By-law 569-2013 layers (point-in-polygon)
+- **Parcel footprint** — Property Boundaries (the real lot polygon; falls back to a
+  ~20 m square only when the click lands on a road, not a parcel)
+- **Heritage status** — Heritage Register address points (designated / listed / none)
+- **Transit distance** — haversine to real TTC subway-station coordinates
+
+`calculate()` is a **real, defensible DCF**; its cost / rent / cap-rate inputs are
+tunable Toronto benchmarks (not a live per-parcel feed). Sun-shadow / conservation /
+easements remain rule-based defaults.
 
 ## Notes for the team
 
