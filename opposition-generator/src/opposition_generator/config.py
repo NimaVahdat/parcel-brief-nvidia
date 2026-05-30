@@ -27,6 +27,8 @@ DATA_DIR = Path(os.getenv("OPP_DATA_DIR", COMPONENT_ROOT / "data"))
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434").rstrip("/")
 EMBED_MODEL = os.getenv("OPP_EMBED_MODEL", "nomic-embed-text")
 LLM_MODEL = os.getenv("OPP_LLM_MODEL", "nemotron-3-super:latest")
+# Ingest tagging is a high-volume, low-stakes extraction task; allow a faster model.
+TAG_MODEL = os.getenv("OPP_TAG_MODEL", LLM_MODEL)
 # nomic-embed-text is 768-dim; mxbai-embed-large is 1024. The store reads the
 # dimension from the first vector it sees, so this only needs to match the model.
 # Generous by default: a cold load of a 30B+ model can take >2 min on first call.

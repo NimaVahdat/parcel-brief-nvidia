@@ -89,21 +89,26 @@ def demo(
 
 @app.command()
 def scrape(
-    start_year: int = typer.Option(2022, "--start-year"),
-    end_year: int = typer.Option(2026, "--end-year"),
-    max_files: int = typer.Option(0, "--max-files", help="0 = no limit"),
-    headful: bool = typer.Option(False, "--headful"),
+    meeting_lo: int = typer.Option(27000, "--meeting-lo", help="meetingId scan start"),
+    meeting_hi: int = typer.Option(27300, "--meeting-hi", help="meetingId scan end"),
+    max_files: int = typer.Option(60, "--max-files", help="0 = no limit"),
+    body: str = typer.Option("Community Council", "--body", help="decision-body filter"),
+    headless: bool = typer.Option(False, "--headless", help="headless fails Akamai; use a real DISPLAY"),
 ) -> None:
-    """Scrape deputation PDFs from TMMIS (requires the `scrape` extra)."""
+    """Scrape deputation PDFs from TMMIS by scanning a meetingId range.
+
+    Run with a real display so the headful browser passes Akamai, e.g.:
+        DISPLAY=:1 opposition-generator scrape --meeting-lo 27000 --meeting-hi 27300
+    """
     from opposition_generator.ingest import scrape_deputations
 
     paths = scrape_deputations(
-        start_year=start_year,
-        end_year=end_year,
-        headless=not headful,
+        scan=(meeting_lo, meeting_hi),
+        body_filter=(body,),
+        headless=headless,
         max_files=max_files or None,
     )
-    typer.echo(f"Downloaded {len(paths)} PDFs")
+    typer.echo(f"Downloaded {len(paths)} PDFs (raw). Next: `opposition-generator ingest`")
 
 
 @app.command()

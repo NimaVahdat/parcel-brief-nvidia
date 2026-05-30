@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 
+from opposition_generator import config
 from opposition_generator.forecast.taxonomy import CONCERN_ALIASES, normalize_concerns
 from opposition_generator.llm import LLMError, chat_json
 
@@ -33,21 +34,32 @@ _GROUP_RE = re.compile(
 )
 
 
-def tag_deputation(text: str, *, fallback_neighborhood: str | None = None) -> dict:
-    """Return {neighborhood, concerns[], groups[], project_type} for a letter."""
+def tag_deputation(
+    text: str,
+    *,
+    fallback_neighborhood: str | None = None,
+    context: str | None = None,
+) -> dict:
+    """Return {neighborhood, concerns[], groups[], project_type} for a letter.
+
+    `context` is optional extra grounding (e.g. the agenda item title, which often
+    contains the project address) to help neighborhood inference.
+    """
     try:
-        return _tag_with_llm(text, fallback_neighborhood)
+        return _tag_with_llm(text, fallback_neighborhood, context)
     except LLMError:
         return _tag_with_keywords(text, fallback_neighborhood)
 
 
-def _tag_with_llm(text: str, fallback_neighborhood: str | None) -> dict:
+def _tag_with_llm(text: str, fallback_neighborhood: str | None, context: str | None) -> dict:
     system = (
         "You extract structured metadata from Toronto community deputation letters. "
         "Respond only with JSON."
     )
+    ctx = f"Agenda item (for address/context): {context}\n\n" if context else ""
     prompt = (
-        "From the deputation letter below, extract:\n"
+        ctx
+        + "From the deputation letter below, extract:\n"
         '- "neighborhood": the Toronto neighbourhood it concerns (best guess)\n'
         '- "concerns": list from [shadow, traffic, density, height, heritage, parking, '
         "affordability, displacement, construction, character, environment, privacy]\n"
@@ -57,7 +69,7 @@ def _tag_with_llm(text: str, fallback_neighborhood: str | None) -> dict:
         '"groups": [...], "project_type": "..."}\n\n'
         f"Letter:\n{text[:4000]}"
     )
-    data = chat_json(prompt, system=system, temperature=0.1)
+    data = chat_json(prompt, system=system, temperature=0.1, model=config.TAG_MODEL)
     neighborhood = (data.get("neighborhood") or fallback_neighborhood or "").strip()
     project_type = data.get("project_type", "other")
     if project_type not in _PROJECT_TYPES:

@@ -18,7 +18,13 @@ class LLMError(RuntimeError):
     """Raised when the LLM backend is unreachable or returns unusable output."""
 
 
-def chat(prompt: str, *, system: str | None = None, temperature: float = 0.7) -> str:
+def chat(
+    prompt: str,
+    *,
+    system: str | None = None,
+    temperature: float = 0.7,
+    model: str | None = None,
+) -> str:
     """Single-turn chat completion returning raw text. Raises LLMError on failure."""
     messages = []
     if system:
@@ -27,7 +33,7 @@ def chat(prompt: str, *, system: str | None = None, temperature: float = 0.7) ->
 
     url = f"{config.OLLAMA_URL}/api/chat"
     payload = {
-        "model": config.LLM_MODEL,
+        "model": model or config.LLM_MODEL,
         "messages": messages,
         "stream": False,
         "keep_alive": config.LLM_KEEP_ALIVE,
@@ -43,7 +49,11 @@ def chat(prompt: str, *, system: str | None = None, temperature: float = 0.7) ->
 
 
 def chat_json(
-    prompt: str, *, system: str | None = None, temperature: float = 0.7
+    prompt: str,
+    *,
+    system: str | None = None,
+    temperature: float = 0.7,
+    model: str | None = None,
 ) -> dict:
     """Chat completion constrained to a JSON object. Retries once, then raises.
 
@@ -57,7 +67,7 @@ def chat_json(
 
     url = f"{config.OLLAMA_URL}/api/chat"
     payload = {
-        "model": config.LLM_MODEL,
+        "model": model or config.LLM_MODEL,
         "messages": messages,
         "stream": False,
         "format": "json",
