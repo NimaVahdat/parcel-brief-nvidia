@@ -204,16 +204,15 @@ def discover_meeting_ids(
     keep: list[int] = []
     for mid in range(lo, hi + 1):
         try:
-            rec = page.evaluate(
+            name = page.evaluate(
                 "async (u) => { const r = await fetch(u); if(!r.ok) return null; const j = await r.json(); "
-                "return (j.Record&&j.Record.meeting)?j.Record.meeting:null; }",
+                "const m = j.Record && j.Record.meeting; "
+                "return (m && m.decisionBody) ? m.decisionBody.decisionBodyName : null; }",
                 MEETING_API % mid,
             )
         except Exception:
-            rec = None
-        if rec:
-            name = rec.get("decisionBodyName", "")
-            if any(s in name for s in decision_body_contains):
-                keep.append(mid)
+            name = None
+        if name and any(s in name for s in decision_body_contains):
+            keep.append(mid)
         time.sleep(0.2)
     return keep
