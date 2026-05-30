@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import type { BriefResponse } from "@/lib/api";
+import type { BriefResponse, ProjectOverrides } from "@/lib/api";
 import { analyzeStream } from "@/lib/api";
 import BriefViewer from "@/components/BriefViewer";
 
@@ -161,6 +161,11 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [briefVisible, setBriefVisible] = useState(false);
 
+  // Applied project overrides — changing these re-runs the pipeline (the "adjust
+  // & re-run" feature). Empty = evaluate the auto-generated massing.
+  const [overrides, setOverrides] = useState<ProjectOverrides>({});
+  const overridesKey = JSON.stringify(overrides);
+
   const doneRef = useRef<Set<string>>(new Set());
 
   const setCompleted = useCallback((n: number) => {
@@ -168,10 +173,19 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
     setCompletedCount(n);
   }, []);
 
+  // Reset the progress flow whenever the scenario (parcel or overrides) changes.
+  useEffect(() => {
+    setApiResult(null);
+    setShowSuccess(false);
+    setBriefVisible(false);
+    setCompleted(0);
+    doneRef.current = new Set();
+  }, [parcelId, overridesKey, setCompleted]);
+
   // Real progress: stream actual agent completions from the connector.
   useEffect(() => {
     doneRef.current = new Set();
-    const cleanup = analyzeStream(parcelId, {
+    const cleanup = analyzeStream(parcelId, overrides, {
       onAgent: (node) => {
         (NODE_TO_UI[node] ?? []).forEach((id) => doneRef.current.add(id));
         setCompleted(AGENTS.filter((a) => doneRef.current.has(a.id)).length);
@@ -183,7 +197,8 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
       onError: (message) => setApiResult({ brief: null, error: message }),
     });
     return cleanup;
-  }, [parcelId, setCompleted]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parcelId, overridesKey, setCompleted]);
 
   // Reveal: errors show immediately; a success result flashes the banner then the brief.
   useEffect(() => {
@@ -205,7 +220,12 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
     }
     if (apiResult?.brief) {
       return (
-        <div className="animate-fade-in">
+        <div className="animate-fade-in space-y-4">
+          <ScenarioControls
+            brief={apiResult.brief}
+            applied={overrides}
+            onRerun={setOverrides}
+          />
           <BriefViewer brief={apiResult.brief} />
         </div>
       );
@@ -217,6 +237,83 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
   }
 
   return <ProgressView completedCount={completedCount} parcelId={parcelId} />;
+}
+
+// ─── scenario controls (adjust & re-run) ──────────────────────────────────────
+
+function ScenarioControls({
+  brief,
+  applied,
+  onRerun,
+}: {
+  brief: BriefResponse;
+  applied: ProjectOverrides;
+  onRerun: (o: ProjectOverrides) => void;
+}) {
+  const opt = brief.design_options.options[0];
+  const baseUnits = Object.values(opt.unit_mix).reduce((s, n) => s + n, 0);
+
+  const [height, setHeight] = useState<number>(applied.height_m ?? opt.height_m);
+  const [units, setUnits] = useState<number>(applied.total_units ?? baseUnits);
+  const [affordable, setAffordable] = useState<number>(
+    applied.affordable_units ?? opt.affordable_units
+  );
+
+  const isCustom = Object.keys(applied).length > 0;
+  const fields: { label: string; value: number; set: (n: number) => void; step?: number }[] = [
+    { label: "Height (m)", value: height, set: setHeight },
+    { label: "Total units", value: units, set: setUnits },
+    { label: "Affordable units", value: affordable, set: setAffordable },
+  ];
+
+  return (
+    <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-4">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="mr-auto">
+          <p className="text-sm font-semibold text-blue-900">Test your own scenario</p>
+          <p className="text-xs text-blue-600">
+            Adjust the building and re-run — approval, opposition and the score update.
+          </p>
+        </div>
+        {fields.map(({ label, value, set }) => (
+          <label key={label} className="flex flex-col gap-1">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+              {label}
+            </span>
+            <input
+              type="number"
+              min={0}
+              value={Number.isFinite(value) ? value : 0}
+              onChange={(e) => set(Number(e.target.value))}
+              className="w-24 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            onRerun({
+              height_m: height,
+              total_units: units,
+              affordable_units: affordable,
+            })
+          }
+          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+        >
+          Re-run scenario
+        </button>
+        {isCustom && (
+          <button
+            type="button"
+            onClick={() => onRerun({})}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50"
+          >
+            Reset to auto
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── success state ────────────────────────────────────────────────────────────

@@ -105,3 +105,18 @@ class BriefResponse(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     parcel_id: str
+    # Optional project overrides — when set, the brief evaluates *this* building
+    # (not the auto-generated max-density massing). Powers the "adjust & re-run" UX.
+    height_m: float | None = None
+    total_units: int | None = None
+    affordable_units: int | None = None
+    retail_sqft: float | None = None
+
+    def overrides(self) -> dict:
+        o = {
+            "height_m": self.height_m,
+            "total_units": self.total_units,
+            "affordable_units": self.affordable_units,
+            "retail_sqft": self.retail_sqft,
+        }
+        return {k: v for k, v in o.items() if v is not None}

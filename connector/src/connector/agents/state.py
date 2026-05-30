@@ -19,6 +19,10 @@ from connector.schemas.brief import (
 class BriefState(TypedDict, total=False):
     parcel_id: str
 
+    # Optional user project overrides (height_m, total_units, affordable_units,
+    # retail_sqft). When present, the massing agent evaluates this building.
+    overrides: dict
+
     # Populated by zoning + constraints agents
     site_fundamentals: ZoningEnvelope
     site_constraints: SiteConstraints

@@ -121,6 +121,8 @@ def _mock_output(envelope: ZoningEnvelope) -> MassingOutput:
     lot_area = lot_area_m2(envelope.footprint_polygon) or 1000.0
     has_retail = "retail" in (envelope.permitted_uses or [])
 
+    from massing_generator import massing3d  # plotly only; lazy import
+
     options: list[Massing] = []
     for label, frac, affordable_share in _MOCK_OPTIONS:
         fit = fit_massing(
@@ -131,16 +133,19 @@ def _mock_output(envelope: ZoningEnvelope) -> MassingOutput:
             gfa_fraction=frac,
             affordable_share=affordable_share,
         )
-        options.append(
-            Massing(
-                massing_id=f"{envelope.parcel_id}-{label}",
-                height_m=fit["height_m"],
-                total_gfa_m2=fit["total_gfa_m2"],
-                unit_mix=fit["unit_mix"],
-                retail_sqft=fit["retail_sqft"],
-                affordable_units=fit["affordable_units"],
-                three_d_uri=f"mock://massing/{envelope.parcel_id}-{label}.glb",
-                facade_renders=[f"mock://render/{envelope.parcel_id}-{label}-n.png"],
-            )
+        m = Massing(
+            massing_id=f"{envelope.parcel_id}-{label}",
+            height_m=fit["height_m"],
+            total_gfa_m2=fit["total_gfa_m2"],
+            unit_mix=fit["unit_mix"],
+            retail_sqft=fit["retail_sqft"],
+            affordable_units=fit["affordable_units"],
+            three_d_uri=f"mock://massing/{envelope.parcel_id}-{label}.glb",
+            facade_renders=[],
         )
+        # clean deterministic 3D render (instant, no LLM); falls back to the mock URI
+        uri = massing3d.render_to_uri(envelope, m, f"{envelope.parcel_id}-{label}")
+        if uri:
+            m.three_d_uri = uri
+        options.append(m)
     return MassingOutput(options=options)
