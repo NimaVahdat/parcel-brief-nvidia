@@ -208,6 +208,12 @@ SIMILAR_CASES_K = 5
 #: keeps each call bounded (committees of <=8 are one call; full council is a few).
 REASONER_BATCH_SIZE = int(os.environ.get("VOTE_PREDICTOR_REASONER_BATCH", "8"))
 
+#: Max Reasoner chunks issued concurrently. Each chunk is an independent LLM call over a
+#: disjoint set of councillors merged into one dict, so running them at once changes only the
+#: wall-clock, never the result. Cap matches the Ollama server's OLLAMA_NUM_PARALLEL so the
+#: chunks actually run in parallel instead of queueing; set to 1 to force the sequential path.
+REASONER_MAX_PARALLEL = int(os.environ.get("VOTE_PREDICTOR_REASONER_PARALLEL", "4"))
+
 #: A per-councillor probability within this band of 0.5 is treated as a swing vote.
 SWING_BAND = 0.12
 

@@ -320,11 +320,29 @@ def run_panel(
     mode = "fallback"
     if use_llm:
         # Chunk the roster so each Reasoner call stays within the model's token/latency budget;
-        # a failed chunk simply leaves its councillors for the Skeptic to abstain.
-        for start in range(0, len(councillors), config.REASONER_BATCH_SIZE):
-            chunk = councillors[start : start + config.REASONER_BATCH_SIZE]
+        # a failed chunk simply leaves its councillors for the Skeptic to abstain. The chunks
+        # are independent — disjoint councillors merged into one dict — so we run them
+        # concurrently: the output is identical, but the wall-clock collapses from the sum of
+        # the calls to the slowest single call when Ollama is configured for parallel requests.
+        chunks = [
+            councillors[start : start + config.REASONER_BATCH_SIZE]
+            for start in range(0, len(councillors), config.REASONER_BATCH_SIZE)
+        ]
+
+        def _reason_chunk(chunk: list[str]) -> dict[str, dict]:
             context = retrieval.format_context(application, chunk, profiles, staff_rec, similar)
-            claims.update(run_reasoner_llm(context, chunk))
+            return run_reasoner_llm(context, chunk)
+
+        workers = max(1, min(len(chunks), config.REASONER_MAX_PARALLEL))
+        if workers <= 1:
+            for chunk in chunks:
+                claims.update(_reason_chunk(chunk))
+        else:
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+                for result in pool.map(_reason_chunk, chunks):
+                    claims.update(result)
         if claims:
             mode = "panel"
     if not claims:
