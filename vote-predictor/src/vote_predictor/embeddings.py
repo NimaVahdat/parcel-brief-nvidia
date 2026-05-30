@@ -176,17 +176,35 @@ class EmbeddingIndex:
 
 
 def application_text(record: dict) -> str:
-    """Compose the text to embed for an application (type + address + description).
+    """Compose the text to embed for an application.
+
+    Builds a feature-derived descriptor (neighborhood, units, height, affordable share, retail,
+    variances) so the indexed text lives in the *same* space as the query text built by
+    ``retrieval._query_text`` from a Contract-1 application. The previous implementation read
+    ``application_type``/``address``/``description`` columns that do not exist in this dataset's
+    schema, so every row embedded the empty string and the index collapsed to one vector — making
+    precedent retrieval return a fixed set regardless of the query. Any real prose fields present
+    are appended so retrieval stays rich on datasets that do carry them.
 
     Args:
-        record (dict): An application row.
+        record (dict): An application row (Contract-1 fields, optionally with prose columns).
 
     Returns:
         str: A compact descriptor string for embedding.
     """
-    return " ".join(
+    from vote_predictor.features import build_features
+
+    feats = build_features(record)
+    descriptor = (
+        f"{feats.neighborhood} development, {feats.total_units} units, "
+        f"{feats.height_m:.0f}m tall, {feats.affordable_share:.0%} affordable, "
+        f"{'with' if feats.retail_flag else 'no'} retail, "
+        f"{feats.requested_variances_count} variances"
+    )
+    prose = " ".join(
         str(record.get(field, "") or "") for field in ("application_type", "address", "description")
     ).strip()
+    return f"{descriptor} {prose}".strip() if prose else descriptor
 
 
 def build_application_index(apps: pd.DataFrame, save: bool = True) -> EmbeddingIndex:

@@ -14,10 +14,25 @@ def test_l2_normalize_unit_rows():
 
 
 def test_application_text_composes_fields():
-    """The embedding text combines type, address, and description."""
+    """The embedding text combines structured project features and any prose fields."""
     text = embeddings.application_text(
-        {"application_type": "OZ", "address": "929 QUEEN ST E", "description": "9-storey rezoning"}
+        {
+            "application_type": "OZ",
+            "address": "929 QUEEN ST E",
+            "description": "9-storey rezoning",
+            "neighborhood": "Leslieville",
+            "height_m": 27,
+            "total_units": 80,
+            "affordable_units": 12,
+            "retail_sqft": 1000,
+            "requested_variances": ["height"],
+        }
     )
+    assert "Leslieville" in text
+    assert "80 units" in text
+    assert "15% affordable" in text
+    assert "with retail" in text
+    assert "1 variances" in text
     assert "OZ" in text and "QUEEN" in text and "rezoning" in text
 
 

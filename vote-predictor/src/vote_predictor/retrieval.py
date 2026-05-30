@@ -141,15 +141,10 @@ def _query_text(application: dict) -> str:
         application (dict): The application being predicted.
 
     Returns:
-        str: A descriptive query sentence.
+        str: A descriptive query sentence in the same space as the indexed text
+        (``embeddings.application_text``), so cosine similarity is meaningful.
     """
-    feats = build_features(application)
-    return (
-        f"{feats.neighborhood} development, {feats.total_units} units, "
-        f"{feats.height_m:.0f}m tall, {feats.affordable_share:.0%} affordable, "
-        f"{'with' if feats.retail_flag else 'no'} retail, "
-        f"{feats.requested_variances_count} variances"
-    )
+    return embeddings.application_text(application)
 
 
 @functools.lru_cache(maxsize=1)
