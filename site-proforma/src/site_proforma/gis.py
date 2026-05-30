@@ -19,7 +19,7 @@ from pathlib import Path
 
 from site_proforma.schemas import ZoningEnvelope
 
-_CKAN_DUMP = "https://ckan0.cf.opendata.inter.prod-toronto.ca/datastore/dump/%s?format=geojson"
+_CKAN_SEARCH = "https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/datastore_search"
 ZONING_AREA_RID = "76a2620f-a6b4-495d-8e41-c0ede1f8a928"
 HEIGHT_RID = "f0a88d06-2430-4025-b15d-362cabd00f31"
 
@@ -31,17 +31,30 @@ _layers = None  # lazy cache: (za_tree, za_geoms, za_props, ht_tree, ht_geoms, h
 
 
 def fetch_zoning() -> tuple[int, int]:
-    """Download the two zoning GeoJSON layers to data/. Returns (n_area, n_height)."""
+    """Download the two zoning layers to data/ via paginated datastore_search.
+
+    Saves each as a GeoJSON FeatureCollection. Returns (n_area, n_height).
+    """
     import httpx
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     counts = []
-    for rid, dest in ((ZONING_AREA_RID, ZONING_GEOJSON), (HEIGHT_RID, HEIGHT_GEOJSON)):
-        with httpx.Client(timeout=300, follow_redirects=True) as c:
-            r = c.get(_CKAN_DUMP % rid)
-            r.raise_for_status()
-            dest.write_bytes(r.content)
-        counts.append(len(json.loads(dest.read_text()).get("features", [])))
+    with httpx.Client(timeout=120, follow_redirects=True) as c:
+        for rid, dest in ((ZONING_AREA_RID, ZONING_GEOJSON), (HEIGHT_RID, HEIGHT_GEOJSON)):
+            features, offset = [], 0
+            while True:
+                r = c.get(_CKAN_SEARCH, params={"resource_id": rid, "limit": 1000, "offset": offset})
+                r.raise_for_status()
+                res = r.json()["result"]
+                for rec in res["records"]:
+                    geom = rec.pop("geometry", None)
+                    if geom:
+                        features.append({"geometry": geom, "properties": rec})
+                offset += len(res["records"])
+                if offset >= res.get("total", 0) or not res["records"]:
+                    break
+            dest.write_text(json.dumps({"type": "FeatureCollection", "features": features}))
+            counts.append(len(features))
     return tuple(counts)  # type: ignore[return-value]
 
 
