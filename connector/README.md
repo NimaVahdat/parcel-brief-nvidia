@@ -4,7 +4,18 @@
 
 The integration layer. Imports the four backend components (`vote-predictor`, `opposition-generator`, `massing-generator`, `site-proforma`) and orchestrates them via LangGraph into a single Development Brief. Exposes the brief over HTTP for the UI.
 
-The connector owns **no data**. It is pure orchestration.
+It is pure orchestration with one small data concern: **resolving the parcel point
+to its real neighbourhood + ward** (`src/connector/geo.py`), so the opposition and
+vote components get the actual neighbourhood/councillor context instead of a
+hardcoded one. Backed by the City Neighbourhoods + Wards open layers (158 + 25 small
+polygons, point-in-polygon); download once and it caches:
+
+```bash
+python -m connector.geo      # downloads data/neighbourhoods.geojson + wards.geojson
+```
+
+Without that data (or shapely), `resolve_context()` degrades to a default
+neighbourhood — the pipeline still runs.
 
 ## Contract
 
@@ -69,6 +80,7 @@ Each agent is a thin wrapper that reads the relevant slice of state, calls one o
 | File | Purpose |
 |---|---|
 | `src/connector/__init__.py` | Package marker |
+| `src/connector/geo.py` | parcel point → real neighbourhood + ward (point-in-polygon) |
 | `src/connector/api/main.py` | FastAPI app + CORS |
 | `src/connector/api/routes/analyze.py` | `POST /analyze` |
 | `src/connector/agents/state.py` | `BriefState` TypedDict |
@@ -79,6 +91,6 @@ Each agent is a thin wrapper that reads the relevant slice of state, calls one o
 | `src/connector/agents/proforma.py` | → `site_proforma.calculate` |
 | `src/connector/agents/approvals.py` | → `vote_predictor.predict` |
 | `src/connector/agents/community.py` | → `opposition_generator.generate` |
-| `src/connector/agents/principal.py` | Synthesizer; writes `GoNoGo` |
+| `src/connector/agents/principal.py` | Synthesizer; writes `GoNoGo` — factors community opposition into the go/no-go and merges opposition mitigations + vote levers |
 | `src/connector/schemas/brief.py` | `BriefResponse` — THE FINAL CONTRACT |
 | `tests/test_smoke.py` | End-to-end smoke test of the orchestrator |

@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn>=0.29",
     "langgraph>=0.2",
+    "httpx>=0.27",
+    "shapely>=2.0",
     "vote-predictor",
     "opposition-generator",
     "massing-generator",

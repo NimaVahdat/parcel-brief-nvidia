@@ -4,11 +4,13 @@ from opposition_generator import generate as generate_opposition
 from opposition_generator.schemas import ProjectDescription
 
 from connector.agents.state import BriefState
+from connector.geo import resolve_context
 from connector.schemas.brief import OppositionForecast
 
 
 def community_agent(state: BriefState) -> BriefState:
     massing = state["design_options"].options[0]
+    neighbourhood = resolve_context(state["parcel_id"])["neighbourhood"]
 
     project = ProjectDescription(
         height_m=massing.height_m,
@@ -18,5 +20,5 @@ def community_agent(state: BriefState) -> BriefState:
         character_notes=None,
     )
 
-    forecast = generate_opposition(project, neighborhood="Trinity-Bellwoods")
+    forecast = generate_opposition(project, neighborhood=neighbourhood)
     return {"community_response": OppositionForecast.model_validate(forecast.model_dump())}
