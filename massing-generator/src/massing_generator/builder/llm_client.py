@@ -82,14 +82,39 @@ class OpenAICompatClient(LLMClient):
     name = "custom"
 
     def __init__(self, model: str | None = None):
-        self.model = model or os.getenv("LLM_MODEL", "")
-        raise NotImplementedError(
-            "Custom LLM not wired yet. Implement OpenAICompatClient.generate() "
-            "in src/llm_client.py (see docstring), then use --provider custom."
+        # Local Ollama on the GB10 (native /api/chat) — keeps inference on-box,
+        # matching the rest of the system. No external API, no key.
+        self.base = (os.getenv("OLLAMA_URL", "http://localhost:11434")).rstrip("/")
+        self.model = model or os.getenv("MASSING_LLM_MODEL") or os.getenv(
+            "LLM_MODEL", "qwen3.6:35b"
         )
+        self.timeout = float(os.getenv("MASSING_LLM_TIMEOUT_S", "600"))
 
     def generate(self, system, messages: list[dict], max_tokens: int = 16000) -> str:
-        raise NotImplementedError
+        import httpx
+
+        # `system` may be a string or a list of Anthropic-style content blocks;
+        # flatten to plain text for the local chat API.
+        if isinstance(system, str):
+            sys_text = system
+        else:
+            sys_text = "\n".join(
+                b.get("text", "") for b in (system or []) if isinstance(b, dict)
+            )
+        msgs = ([{"role": "system", "content": sys_text}] if sys_text else []) + [
+            {"role": m["role"], "content": m["content"]} for m in messages
+        ]
+        payload = {
+            "model": self.model,
+            "messages": msgs,
+            "stream": False,
+            "keep_alive": "30m",
+            "options": {"temperature": 0.3, "num_predict": max_tokens, "num_ctx": 16384},
+        }
+        with httpx.Client(timeout=self.timeout) as c:
+            resp = c.post(f"{self.base}/api/chat", json=payload)
+            resp.raise_for_status()
+            return resp.json()["message"]["content"]
 
 
 def get_client(provider: str = "anthropic", model: str | None = None) -> LLMClient:
