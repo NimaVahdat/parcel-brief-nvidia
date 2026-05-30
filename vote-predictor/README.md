@@ -2,9 +2,29 @@
 
 ## What this does
 
-Predicts how Toronto council will vote on a development application: overall approval probability, per-councillor vote where individual votes are recorded, and counterfactual levers (e.g. "+12 affordable units → +0.16 probability").
+Predicts how Toronto council will vote on a development application — overall
+approval probability, per-councillor lean, swing councillors, and counterfactual
+**levers** ("+12 affordable units → +0.16"). It answers: *will this get approved,
+and what change flips a no to a yes?*
 
-The core is a tabular classifier (XGBoost) trained on past Toronto applications joined to recorded vote outcomes. A Qwen2.5-7B wrapper parses unstructured application text into structured features on the way in, and writes natural-language counterfactual recommendations on the way out.
+## How it works — prediction by precedent (RAG, not a trained model)
+
+Council approvals are decided by **precedent**: similar projects, in similar areas,
+tend to get similar outcomes. So instead of training a classifier on features that
+are buried in free-text staff reports, this component **retrieves the most similar
+past applications (with their real council outcomes) and predicts from them.**
+
+```
+ApplicationFeatures → query → hybrid retrieve K similar past applications
+  → approval_probability = similarity-weighted approval rate of the K neighbors
+  → levers = counterfactual retrieval (perturb the application, re-retrieve, Δ prob)
+  → per_councillor from precedents' recorded votes (sparse) + base-rate fallback
+```
+
+Why RAG over XGBoost here: the structured features a tabular model needs aren't
+cleanly available (they live in prose), and a precedent approach is **explainable**
+("0.73 — 6 of 8 similar Toronto applications were approved") and reuses the proven
+opposition-generator retrieval stack. See `docs/PRD.md` for the original framing.
 
 ## Contract
 
@@ -12,59 +32,75 @@ The core is a tabular classifier (XGBoost) trained on past Toronto applications 
 def predict(application: ApplicationFeatures, councillors: list[str]) -> VotePrediction
 ```
 
-Full type definitions in `src/vote_predictor/schemas.py`. Source of truth in `docs/CONTRACTS.md`.
+`predict()` never raises — it degrades `rag → heuristic` so the connector stays up.
+Types in `src/vote_predictor/schemas.py`; source of truth in `docs/CONTRACTS.md`.
 
-## Data sources
+## The corpus — real Toronto outcomes
 
-- **TMMIS** — applications and recorded per-councillor votes (1999–present). See `docs/DATA.md` for URLs.
-- TMMIS is Akamai-protected; scraping needs a headless browser (Playwright).
+Past planning items (`PLAN_ACT`) scraped from the TMMIS council JSON API (reusing the
+headful-browser Akamai bypass from opposition-generator), API-only so it is fast. The
+council outcome (approved/refused) comes from the decision-report title + item status.
+The embedded `text` strips outcome words so retrieval matches the project, not the label.
 
-Local data is dumped to `./data/` (gitignored).
+## Measuring quality
 
-## How to run solo
+Because every precedent has a **known real outcome**, we can actually backtest:
 
-```bash
-# from repo root
-uv sync
-
-# print a mock prediction for a fake application
-uv run python -m vote_predictor.cli demo
-
-# OR run the standalone HTTP service on :8001
-uv run uvicorn vote_predictor.service:app --port 8001 --reload
-curl -X POST http://localhost:8001/predict -H "Content-Type: application/json" -d @example_input.json
+```
+python -m eval.evaluate     # leave-one-out over the corpus
 ```
 
-## Current state
+Reports **accuracy, AUC, Brier (calibration), and lift over the base rate** — the
+honest bar, since Toronto approves most applications. `approval_probability` is
+measurable this way; `per_councillor` and `levers` have no counterfactual ground
+truth and are face-validity checks only.
 
-- [x] Skeleton scaffolded, contract function returns mock data
-- [x] CLI runs end-to-end with a hardcoded fake application
-- [x] Standalone FastAPI service runs
-- [ ] TMMIS scraper for applications + recorded votes (`ingest.py`)
-- [ ] Feature engineering on raw application data (`features.py`)
-- [ ] XGBoost training pipeline + held-out evaluation (`train.py`)
-- [ ] LLM wrapper: parse unstructured app text in, generate counterfactuals out (`llm_wrapper.py`)
-- [ ] Replace mock in `infer.py` with model load + real prediction
+## Run it
 
-## Next tasks
+```bash
+pip install -e vote-predictor              # core (no xgboost/torch)
+vote-predictor seed                        # synthetic precedent corpus
+vote-predictor build-index                 # embed it (needs Ollama)
+vote-predictor demo                        # full VotePrediction (+ which tier ran)
 
-1. Implement the TMMIS scraper in `ingest.py` (Playwright; see the Akamai note in `docs/DATA.md`). Dump to `data/applications.parquet` and `data/votes.parquet`.
-2. Define the feature set in `features.py`. Start with: project_height_m, total_units, affordable_units, retail_sqft, neighborhood (one-hot), committee_id, councillor histories.
-3. Train an XGBoost classifier in `train.py`. Hold out the most recent 500 applications as test. Report accuracy + calibration.
-4. Wire `infer.py` to load the trained model and return real predictions.
-5. Add the LLM wrapper for the I/O layer.
+# real corpus (headful browser beats Akamai — use a real DISPLAY):
+DISPLAY=:1 vote-predictor scrape --meeting-lo 27000 --meeting-hi 27210
+vote-predictor build-index
+
+# optional service
+uvicorn vote_predictor.service:app --port 8001
+```
+
+## Configuration
+
+| Env var | Meaning | Default |
+|---|---|---|
+| `OLLAMA_URL` | Ollama server | `http://localhost:11434` |
+| `VP_EMBED_MODEL` | embedding model | `nomic-embed-text` |
+| `DATABASE_URL` | set → pgvector instead of SQLite | unset |
+| `VP_TOP_K` | precedents retrieved | `12` |
 
 ## File map
 
 | File | Purpose |
 |---|---|
-| `src/vote_predictor/__init__.py` | Re-exports `predict()` |
-| `src/vote_predictor/schemas.py` | Pydantic types for this component (re-declared from contracts) |
-| `src/vote_predictor/ingest.py` | TMMIS scraping |
-| `src/vote_predictor/features.py` | Feature engineering |
-| `src/vote_predictor/train.py` | XGBoost training |
-| `src/vote_predictor/infer.py` | `predict()` — THE CONTRACT |
-| `src/vote_predictor/llm_wrapper.py` | Qwen2.5-7B wrapper for I/O |
-| `src/vote_predictor/service.py` | Optional FastAPI service on :8001 |
-| `src/vote_predictor/cli.py` | Solo demo CLI |
-| `tests/test_smoke.py` | Smoke test (mock prediction renders) |
+| `infer.py` | `predict()` — THE CONTRACT + orchestration + degradation |
+| `precedent.py` | probability, levers (counterfactual retrieval), per-councillor |
+| `embed.py` · `store.py` · `retrieve.py` | the RAG stack (Ollama + SQLite/pgvector + hybrid) |
+| `ingest.py` | TMMIS council-API scraper (planning items + outcomes) |
+| `corpus.py` · `seeds.py` | corpus loading + committed synthetic precedents |
+| `eval/evaluate.py` | leave-one-out backtest (accuracy/AUC/Brier/lift) |
+| `cli.py` · `service.py` | CLI + optional FastAPI on :8001 |
+
+## Honest limits
+
+- `per_councillor` is data-limited (recorded votes are sparse, and the connector
+  passes placeholder councillor IDs today) → best-effort estimate.
+- Calibration is precedent-based, not a trained classifier — but explainable and
+  measurable (see eval).
+
+## Notes for the team
+
+- `connector/agents/approvals.py` passes hardcoded `DEFAULT_COUNCILLORS` and
+  `neighborhood="Trinity-Bellwoods"`; both should come from the parcel's ward/site
+  lookup for real per-councillor output.
