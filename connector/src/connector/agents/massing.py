@@ -33,7 +33,7 @@ def _custom_massing(base: Massing, envelope, ov: dict) -> Massing:
     affordable = int(ov["affordable_units"]) if "affordable_units" in ov else base.affordable_units
     affordable = max(0, min(affordable, units))
     gfa = round(units * _GFA_PER_UNIT + retail / _SQFT_PER_SQM, 0)
-    return Massing(
+    m = Massing(
         massing_id=f"{envelope.parcel_id}-custom",
         height_m=round(height, 1),
         total_gfa_m2=gfa,
@@ -43,6 +43,16 @@ def _custom_massing(base: Massing, envelope, ov: dict) -> Massing:
         three_d_uri=base.three_d_uri,
         facade_renders=base.facade_renders,
     )
+    # render a clean 3D for the user's building (deterministic, instant)
+    try:
+        from massing_generator import massing3d
+
+        uri = massing3d.render_to_uri(envelope, m, f"{envelope.parcel_id}-custom")
+        if uri:
+            m.three_d_uri = uri
+    except Exception:
+        pass
+    return m
 
 
 def massing_agent(state: BriefState) -> BriefState:

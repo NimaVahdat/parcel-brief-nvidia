@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { BriefResponse, Massing } from "@/lib/api";
+import { CONNECTOR_BASE } from "@/lib/api";
 
 // ─── formatting helpers ───────────────────────────────────────────────────────
 
@@ -376,6 +377,18 @@ function SelectedOptionSummary({
           Active
         </span>
       </div>
+
+      {/* Interactive 3D massing */}
+      {option.three_d_uri?.startsWith("/massing") && (
+        <div className="mb-4 overflow-hidden rounded-lg border border-blue-100 bg-white">
+          <iframe
+            src={`${CONNECTOR_BASE}${option.three_d_uri}`}
+            title="3D massing"
+            className="h-72 w-full"
+            loading="lazy"
+          />
+        </div>
+      )}
 
       {/* Key metrics grid */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">

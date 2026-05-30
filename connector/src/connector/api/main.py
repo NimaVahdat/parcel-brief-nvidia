@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from connector.api.routes.analyze import router as analyze_router, warmup
 
@@ -33,6 +34,15 @@ app.add_middleware(
 )
 
 app.include_router(analyze_router)
+
+# Serve the deterministic 3D massing renders (HTML scenes) the massing agent writes.
+try:
+    from massing_generator.massing3d import RENDERS_DIR
+
+    RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/massing", StaticFiles(directory=str(RENDERS_DIR)), name="massing")
+except Exception:  # massing renders optional — never block startup
+    pass
 
 
 @app.get("/health")

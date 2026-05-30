@@ -90,8 +90,9 @@ export type BriefResponse = {
   recommendation: GoNoGo;
 };
 
-const BASE_URL =
+export const CONNECTOR_BASE =
   process.env.NEXT_PUBLIC_CONNECTOR_URL ?? "http://localhost:8000";
+const BASE_URL = CONNECTOR_BASE;
 
 export async function analyze(parcelId: string): Promise<BriefResponse> {
   const res = await fetch(`${BASE_URL}/analyze`, {
