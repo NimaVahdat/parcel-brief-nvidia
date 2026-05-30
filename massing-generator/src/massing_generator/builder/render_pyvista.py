@@ -804,6 +804,13 @@ def render(spec, mode, out_html, screenshot=None, glb_out=None):
     lk = "none" if mode == "hq" else "light_kit"
     pl = pv.Plotter(off_screen=True, window_size=(1500, 1000), lighting=lk)
 
+    # Textured actors export to vtk.js (export_html) as flat white because that
+    # serialization can't carry textures. Collect them here and bake the material's
+    # solid colour onto the actor just before the HTML export — after the textured
+    # PNG / glTF are written — so the interactive HTML shows correctly-coloured
+    # massing instead of plain white boxes.
+    export_recolor: list[tuple[object, str]] = []
+
     for mesh, matname, map_plane, plane_tiles, cov in scene.elems:
         if mode == "blueprint":
             _add_blueprint_mesh(pl, mesh, matname)
@@ -830,9 +837,10 @@ def render(spec, mode, out_html, screenshot=None, glb_out=None):
                     mesh.active_texture_coordinates = (
                         mesh.active_texture_coordinates * plane_tiles)
             # textured + diffuse lighting (PBR w/o an IBL env renders flat/gray)
-            pl.add_mesh(mesh, texture=get_texture(mat["tex"]),
-                        ambient=0.3, diffuse=0.95, specular=0.1,
-                        specular_power=18, opacity=opacity, smooth_shading=False)
+            actor = pl.add_mesh(mesh, texture=get_texture(mat["tex"]),
+                                ambient=0.3, diffuse=0.95, specular=0.1,
+                                specular_power=18, opacity=opacity, smooth_shading=False)
+            export_recolor.append((actor, color))
         elif mode == "hq" and glossy:  # glass / metal: reflective
             pl.add_mesh(mesh, color=color, ambient=0.22, diffuse=0.55,
                         specular=0.95, specular_power=60,
@@ -907,6 +915,12 @@ def render(spec, mode, out_html, screenshot=None, glb_out=None):
             print(f"Wrote {glb_out}")
         except Exception as e:  # noqa: BLE001
             print(f"glTF export skipped: {e}")
+    # vtk.js can't carry the textures, so drop them and fall back to each
+    # material's solid colour for the interactive HTML (the PNG/glTF above keep the
+    # full textured look). Without this every textured surface exports as white.
+    for actor, hexcolor in export_recolor:
+        actor.GetProperty().SetColor(*pv.Color(hexcolor).float_rgb)
+        actor.SetTexture(None)
     pl.export_html(out_html)
     pl.close()
     if mode in ("hq", "normal"):
