@@ -58,7 +58,7 @@ contract and the pro-forma don't change.
 ```bash
 pip install -e site-proforma            # pure-Python, no GIS/DB needed
 site-proforma lookup --parcel-id 43.6532_-79.3832
-site-proforma proforma --demo
+site-proforma proforma --parcel-id 43.6532_-79.3832
 uvicorn site_proforma.service:app --port 8004     # optional service
 ```
 

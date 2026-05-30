@@ -42,6 +42,7 @@ OPEX_RATIO = _f("SP_OPEX_RATIO", 0.33)        # operating expenses as % of EGI
 LTC = _f("SP_LTC", 0.60)                      # loan-to-cost
 INTEREST_RATE = _f("SP_INTEREST_RATE", 0.062)
 CAP_RATE = _f("SP_CAP_RATE", 0.045)           # terminal cap rate
+ANNUAL_GROWTH = _f("SP_ANNUAL_GROWTH", 0.025)  # NOI / value growth per year
 SALE_PRICE_PSM = _f("SP_SALE_PRICE_PSM", 12000.0)   # condo ~$1115/sqft sellable
 SELLABLE_EFFICIENCY = _f("SP_SELLABLE_EFFICIENCY", 0.82)  # sellable / GFA
 

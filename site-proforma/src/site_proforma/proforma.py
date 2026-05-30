@@ -62,15 +62,22 @@ def _irrs(inp: _Inputs, *, interest: float, cap: float, rent_factor: float,
     """Return (irr_5y, irr_10y) for the given financing/rent assumptions."""
     noi = _noi(inp.gross_annual_rent, rent_factor)
     debt_service = inp.loan * interest
-    stabilized_value = noi / cap if cap else 0.0
     stabilize_year = inp.construction_years + (1 if extra_months >= 6 else 0)
+
+    g = A.ANNUAL_GROWTH
 
     def irr_for_horizon(h: int) -> float:
         cfs = [-inp.equity]
         for y in range(1, h + 1):
-            cf = (noi - debt_service) if y >= stabilize_year else 0.0
+            if y >= stabilize_year:
+                noi_y = noi * (1 + g) ** (y - stabilize_year)
+                cf = noi_y - debt_service
+            else:
+                cf = 0.0
             if y == h:
-                cf += stabilized_value - inp.loan   # sell, repay debt
+                # exit on next-year forward NOI capitalized, repay the loan
+                exit_noi = noi * (1 + g) ** (h - stabilize_year + 1)
+                cf += (exit_noi / cap if cap else 0.0) - inp.loan
             cfs.append(cf)
         return round(_irr(cfs), 4)
 

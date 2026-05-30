@@ -11,17 +11,17 @@ from site_proforma.site import lookup
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
-@app.command()
-def lookup_cmd(parcel_id: str = typer.Option("543-dundas-w", "--parcel-id")) -> None:
-    """Print mock site data for a parcel."""
+@app.command("lookup")
+def lookup_cmd(parcel_id: str = typer.Option("43.6532_-79.3832", "--parcel-id")) -> None:
+    """Look up the site envelope + constraints for a parcel (UI lat_lng point)."""
     site = lookup(parcel_id)
     print(json.dumps(site.model_dump(), indent=2))
 
 
 @app.command()
-def proforma(demo: bool = typer.Option(False, "--demo")) -> None:
-    """Run a mock pro-forma."""
-    site = lookup("543-dundas-w")
+def proforma(parcel_id: str = typer.Option("43.6532_-79.3832", "--parcel-id")) -> None:
+    """Run the pro-forma for a sample massing on the looked-up site."""
+    site = lookup(parcel_id)
     massing = Massing(
         massing_id="demo-tall",
         height_m=42.0,
