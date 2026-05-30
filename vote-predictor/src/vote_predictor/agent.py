@@ -26,19 +26,26 @@ class VotePredictorAgent:
     Attributes:
         profiles (dict[str, dict]): Per-councillor voting profiles for grounding.
         use_llm (bool): Whether to attempt the LLM Reasoner before the heuristic.
+        use_verify (bool): Whether to run the agentic verification layer on gate-passed claims.
     """
 
     def __init__(
-        self, profiles: dict[str, dict] | None = None, use_llm: bool | None = None
+        self,
+        profiles: dict[str, dict] | None = None,
+        use_llm: bool | None = None,
+        use_verify: bool | None = None,
     ) -> None:
-        """Initialize the agent with councillor profiles and an LLM toggle.
+        """Initialize the agent with councillor profiles and the LLM / verification toggles.
 
         Args:
             profiles (dict[str, dict] | None): Councillor profiles; loaded/built if None.
             use_llm (bool | None): Force the LLM on/off; defaults to ``config.USE_LLM``.
+            use_verify (bool | None): Force the verification layer on/off; defaults to
+                ``config.VERIFY_CLAIMS`` (the layer is itself inert unless the LLM Reasoner runs).
         """
         self.profiles = profiles if profiles is not None else retrieval.load_or_build_profiles()
         self.use_llm = config.USE_LLM if use_llm is None else use_llm
+        self.use_verify = config.VERIFY_CLAIMS if use_verify is None else use_verify
 
     def _levers(
         self,
@@ -123,6 +130,7 @@ class VotePredictorAgent:
             similar=similar,
             ward=ward,
             use_llm=self.use_llm,
+            use_verify=self.use_verify,
         )
         per = result.per_councillor
         approval = poisson_binomial_majority(list(per.values()))
@@ -142,6 +150,10 @@ class VotePredictorAgent:
             precedent_ids=result.precedent_ids,
             n_grounded=sum(1 for t in result.traces if t.grounded),
             n_abstained=sum(1 for t in result.traces if not t.grounded),
+            verification_enabled=result.verification_enabled,
+            n_verified=result.n_verified,
+            n_verifier_downgraded=result.n_verifier_downgraded,
+            n_verifier_abstained=result.n_verifier_abstained,
         )
         return prediction, trace
 

@@ -4,7 +4,14 @@
 
 Predicts how Toronto council will vote on a development application: overall approval probability, per-councillor vote where individual votes are recorded, and counterfactual levers (e.g. "+12 affordable units → +0.16 probability").
 
-The core is a tabular classifier (XGBoost) trained on past Toronto applications joined to recorded vote outcomes. A Qwen2.5-7B wrapper parses unstructured application text into structured features on the way in, and writes natural-language counterfactual recommendations on the way out.
+The core is a **layered, grounded multi-agent panel** running entirely on local NVIDIA hardware (the GB10), not a tabular model:
+
+1. **Reasoner** (nemotron-3-super) proposes a per-councillor Yes-probability grounded in that councillor's voting record, the staff recommendation, and retrieved precedent.
+2. **Skeptic gate** (deterministic, the hard floor) forces any claim with no councillor history and no valid cited precedent to a flagged prior — no LLM can override this, so "only grounded claims ship" is a real mechanism.
+3. **Verifier layer** (three independent LLMs + a deterministic consensus) cross-examines the gate survivors — an Evidence-Verifier, a Skeptic-Critic, and a Precedent-Checker. The consensus is clamped so it can only **downgrade or abstain** a claim, never upgrade it past the gate.
+4. **Clerk** aggregates the surviving per-councillor probabilities into a committee approval probability via the exact Poisson-binomial distribution.
+
+See `docs/VOTE_PREDICTOR.md` for the full design. All inference is local — no external API.
 
 ## Contract
 
@@ -33,6 +40,14 @@ uv run python -m vote_predictor.cli demo
 # OR run the standalone HTTP service on :8001
 uv run uvicorn vote_predictor.service:app --port 8001 --reload
 curl -X POST http://localhost:8001/predict -H "Content-Type: application/json" -d @example_input.json
+
+# backtest the panel on a held-out time split (needs a model endpoint for --use-llm);
+# --verify-ablation adds a verification-off arm so you can see what the verifier layer changes
+uv run vote-predictor evaluate --use-llm --verify-ablation
+
+# nondeterminism gate: re-run the verifier layer on fixed gate claims and report the flip rate
+# (should be 0 at temperature 0; a CI gate can assert this)
+uv run vote-predictor verify-stability --repeats 3
 ```
 
 ## Current state

@@ -95,6 +95,27 @@ def test_eval_reports_abstain_rate(temp_data_dir):
     assert "panel_abstain_rate" in report["meta"]
 
 
+def test_eval_reports_verification_keys(temp_data_dir):
+    """The report surfaces verification-layer rates and a verification_enabled meta flag."""
+    ingest.generate_synthetic(n_applications=300, seed=9)
+    report = evaluate(use_llm=False)
+    assert "verifier_downgrade_rate" in report["panel"]
+    assert "verifier_abstain_rate" in report["panel"]
+    # In fallback mode the LLM Reasoner never runs, so the verification layer is inert.
+    assert report["meta"]["verification_enabled"] is False
+    assert report["meta"]["verifier_abstain_rate"] == 0.0
+
+
+def test_eval_verify_ablation_adds_arm(temp_data_dir):
+    """verify_ablation adds a panel_unverified arm; in fallback it matches the panel arm exactly."""
+    ingest.generate_synthetic(n_applications=300, seed=9)
+    report = evaluate(use_llm=False, verify_ablation=True)
+    assert "panel_unverified" in report
+    # Fallback panel never invokes verification, so verified and unverified arms are identical.
+    assert report["panel"]["vote_accuracy"] == report["panel_unverified"]["vote_accuracy"]
+    assert report["panel"]["brier"] == report["panel_unverified"]["brier"]
+
+
 def test_base_rates_report_shape(temp_data_dir):
     """compute_base_rates returns the expected keys on a freshly built table."""
     ingest.generate_synthetic(n_applications=200, seed=3)
