@@ -1,0 +1,86 @@
+[
+  {
+    "parcel_id": "43.6486_-79.3806",
+    "max_height_m": 84.0,
+    "max_fsi": 12.0,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential", "retail", "office"],
+    "footprint_polygon": [
+      [-79.38072, 43.64851], [-79.38072, 43.64869],
+      [-79.38048, 43.64869], [-79.38048, 43.64851], [-79.38072, 43.64851]
+    ],
+    "parking_minimum": 0
+  },
+  {
+    "parcel_id": "43.6447_-79.3920",
+    "max_height_m": 30.0,
+    "max_fsi": 3.0,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential", "retail", "office"],
+    "footprint_polygon": [
+      [-79.39212, 43.64461], [-79.39212, 43.64479],
+      [-79.39188, 43.64479], [-79.39188, 43.64461], [-79.39212, 43.64461]
+    ],
+    "parking_minimum": 0
+  },
+  {
+    "parcel_id": "43.6878_-79.3933",
+    "max_height_m": 30.0,
+    "max_fsi": 4.25,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential", "retail", "office"],
+    "footprint_polygon": [
+      [-79.39342, 43.68771], [-79.39342, 43.68789],
+      [-79.39318, 43.68789], [-79.39318, 43.68771], [-79.39342, 43.68771]
+    ],
+    "parking_minimum": 0
+  },
+  {
+    "parcel_id": "43.6571_-79.4529",
+    "max_height_m": 32.0,
+    "max_fsi": 3.0,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential", "retail"],
+    "footprint_polygon": [
+      [-79.45302, 43.65701], [-79.45302, 43.65719],
+      [-79.45278, 43.65719], [-79.45278, 43.65701], [-79.45302, 43.65701]
+    ],
+    "parking_minimum": 0
+  },
+  {
+    "parcel_id": "43.6779_-79.3494",
+    "max_height_m": 16.0,
+    "max_fsi": 3.0,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential", "retail", "office"],
+    "footprint_polygon": [
+      [-79.34952, 43.67781], [-79.34952, 43.67799],
+      [-79.34928, 43.67799], [-79.34928, 43.67781], [-79.34952, 43.67781]
+    ],
+    "parking_minimum": 0
+  },
+  {
+    "parcel_id": "43.7700_-79.4100",
+    "max_height_m": 10.0,
+    "max_fsi": 0.6,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential"],
+    "footprint_polygon": [
+      [-79.41012, 43.76991], [-79.41012, 43.77009],
+      [-79.40988, 43.77009], [-79.40988, 43.76991], [-79.41012, 43.76991]
+    ],
+    "parking_minimum": 1
+  },
+  {
+    "parcel_id": "43.7700_-79.2300",
+    "max_height_m": 11.0,
+    "max_fsi": 1.0,
+    "setbacks": { "north": 3.0, "south": 0.0, "east": 1.5, "west": 1.5 },
+    "permitted_uses": ["residential"],
+    "footprint_polygon": [
+      [-79.23012, 43.76991], [-79.23012, 43.77009],
+      [-79.22988, 43.77009], [-79.22988, 43.76991], [-79.23012, 43.76991]
+    ],
+    "parking_minimum": 0
+  }
+]
