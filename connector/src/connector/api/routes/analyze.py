@@ -51,16 +51,24 @@ def _assemble(parcel_id: str, state: dict) -> BriefResponse:
     )
 
 
-def _run(parcel_id: str) -> dict:
+def _cache_key(parcel_id: str, overrides: dict) -> str:
+    if not overrides:
+        return parcel_id
+    return parcel_id + "|" + "|".join(f"{k}={overrides[k]}" for k in sorted(overrides))
+
+
+def _run(parcel_id: str, overrides: dict | None = None) -> dict:
     """Run the pipeline (or return cache). Returns the BriefResponse dump."""
-    if parcel_id in _CACHE:
-        return _CACHE[parcel_id]
-    with _lock_for(parcel_id):
-        if parcel_id in _CACHE:
-            return _CACHE[parcel_id]
-        state = get_graph().invoke({"parcel_id": parcel_id})
+    overrides = overrides or {}
+    key = _cache_key(parcel_id, overrides)
+    if key in _CACHE:
+        return _CACHE[key]
+    with _lock_for(key):
+        if key in _CACHE:
+            return _CACHE[key]
+        state = get_graph().invoke({"parcel_id": parcel_id, "overrides": overrides})
         brief = _assemble(parcel_id, state).model_dump()
-        _CACHE[parcel_id] = brief
+        _CACHE[key] = brief
         return brief
 
 
@@ -75,7 +83,7 @@ def warmup() -> None:
 @router.post("/analyze", response_model=BriefResponse)
 def analyze(req: AnalyzeRequest) -> BriefResponse:
     try:
-        return BriefResponse(**_run(req.parcel_id))
+        return BriefResponse(**_run(req.parcel_id, req.overrides()))
     except KeyError as e:
         raise HTTPException(status_code=500, detail=f"missing field: {e}") from e
 
@@ -85,31 +93,46 @@ def _sse(obj: dict) -> str:
 
 
 @router.get("/analyze/stream")
-def analyze_stream(parcel_id: str) -> StreamingResponse:
+def analyze_stream(
+    parcel_id: str,
+    height_m: float | None = None,
+    total_units: int | None = None,
+    affordable_units: int | None = None,
+    retail_sqft: float | None = None,
+) -> StreamingResponse:
+    overrides = {
+        k: v for k, v in {
+            "height_m": height_m, "total_units": total_units,
+            "affordable_units": affordable_units, "retail_sqft": retail_sqft,
+        }.items() if v is not None
+    }
+    key = _cache_key(parcel_id, overrides)
+
     def gen():
         # cache hit -> flash all steps complete, then the brief (instant refresh)
-        if parcel_id in _CACHE:
+        if key in _CACHE:
             for node in _NODE_ORDER:
                 yield _sse({"agent": node})
-            yield _sse({"brief": _CACHE[parcel_id], "cached": True})
+            yield _sse({"brief": _CACHE[key], "cached": True})
             return
 
-        lock = _lock_for(parcel_id)
-        with lock:
-            if parcel_id in _CACHE:
+        with _lock_for(key):
+            if key in _CACHE:
                 for node in _NODE_ORDER:
                     yield _sse({"agent": node})
-                yield _sse({"brief": _CACHE[parcel_id], "cached": True})
+                yield _sse({"brief": _CACHE[key], "cached": True})
                 return
-            accumulated: dict = {"parcel_id": parcel_id}
+            accumulated: dict = {"parcel_id": parcel_id, "overrides": overrides}
             try:
-                for update in get_graph().stream({"parcel_id": parcel_id}, stream_mode="updates"):
+                for update in get_graph().stream(
+                    {"parcel_id": parcel_id, "overrides": overrides}, stream_mode="updates"
+                ):
                     for node, delta in update.items():
                         if delta:
                             accumulated.update(delta)
                         yield _sse({"agent": node})
                 brief = _assemble(parcel_id, accumulated).model_dump()
-                _CACHE[parcel_id] = brief
+                _CACHE[key] = brief
                 yield _sse({"brief": brief})
             except Exception as e:  # surface failures to the client
                 yield _sse({"error": str(e)})

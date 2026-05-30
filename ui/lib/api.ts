@@ -112,14 +112,26 @@ export type StreamHandlers = {
   onError: (message: string) => void;
 };
 
+// Optional project overrides — when set, the brief evaluates *this* building.
+export type ProjectOverrides = {
+  height_m?: number;
+  total_units?: number;
+  affordable_units?: number;
+  retail_sqft?: number;
+};
+
 // Streams real agent-completion events (SSE), then the final brief. Returns a
-// cleanup fn. Cached parcels emit all steps + the brief instantly.
+// cleanup fn. Cached parcels (same overrides) emit all steps + the brief instantly.
 export function analyzeStream(
   parcelId: string,
+  overrides: ProjectOverrides,
   handlers: StreamHandlers
 ): () => void {
-  const url = `${BASE_URL}/analyze/stream?parcel_id=${encodeURIComponent(parcelId)}`;
-  const es = new EventSource(url);
+  const params = new URLSearchParams({ parcel_id: parcelId });
+  for (const [k, v] of Object.entries(overrides)) {
+    if (v !== undefined && v !== null && !Number.isNaN(v)) params.set(k, String(v));
+  }
+  const es = new EventSource(`${BASE_URL}/analyze/stream?${params.toString()}`);
   es.onmessage = (ev) => {
     try {
       const data = JSON.parse(ev.data);
