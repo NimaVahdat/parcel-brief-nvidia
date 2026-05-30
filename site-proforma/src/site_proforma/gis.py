@@ -74,10 +74,13 @@ def _build():
         feats = json.loads(path.read_text())["features"]
         geoms, props = [], []
         for f in feats:
-            if not f.get("geometry"):
+            g = f.get("geometry")
+            if not g:
                 continue
+            if isinstance(g, str):           # datastore returns geometry as a JSON string
+                g = json.loads(g)
             try:
-                geoms.append(shape(f["geometry"]))
+                geoms.append(shape(g))
                 props.append(f.get("properties", {}))
             except Exception:
                 continue
