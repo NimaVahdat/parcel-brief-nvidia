@@ -32,6 +32,10 @@ TAG_MODEL = os.getenv("OPP_TAG_MODEL", LLM_MODEL)
 # nomic-embed-text is 768-dim; mxbai-embed-large is 1024. The store reads the
 # dimension from the first vector it sees, so this only needs to match the model.
 # Generous by default: a cold load of a 30B+ model can take >2 min on first call.
+# Embedding inputs are truncated to this many chars: real deputations can exceed
+# nomic-embed-text's 2048-token context, which makes Ollama 500. ~6000 chars is a
+# safe margin and the opening of a deputation carries its position + concerns.
+EMBED_MAX_CHARS = int(os.getenv("OPP_EMBED_MAX_CHARS", "6000"))
 LLM_TIMEOUT_S = float(os.getenv("OPP_LLM_TIMEOUT_S", "300"))
 EMBED_TIMEOUT_S = float(os.getenv("OPP_EMBED_TIMEOUT_S", "120"))
 # Keep the model resident between calls so HyDE + letter generation stay warm.

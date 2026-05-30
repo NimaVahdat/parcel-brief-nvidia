@@ -38,7 +38,8 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
     out: list[list[float]] = []
     with httpx.Client(timeout=config.EMBED_TIMEOUT_S) as client:
         for text in texts:
-            out.append(_embed_one(client, url, text))
+            # truncate to stay within the embedding model's context window
+            out.append(_embed_one(client, url, text[: config.EMBED_MAX_CHARS]))
     return out
 
 
