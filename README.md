@@ -21,24 +21,51 @@ You can also adjust the building (height / units / affordable / retail) and re-r
 
 ## Architecture
 
+**Client ↔ server**
+
 ```
-   Browser ── click parcel ──►  Next.js UI (:3000)
-      ▲                              │  GET /analyze/stream  (Server-Sent Events)
-      └──────── streamed brief ──────┤
-                                     ▼
-        ┌──────────────────  NVIDIA GB10 · 128 GB · on-device  ──────────────────┐
-        │  connector  (FastAPI + LangGraph StateGraph, :8000)                     │
-        │      START → zoning ─┐                                                  │
-        │              constraints ┘→ massing → proforma →┬ approvals (vote) ─┐   │
-        │                                                 └ community (oppo) ─┤   │
-        │                                                  → principal → END  │   │
-        │   ─────────────────────────────────────────────────────────────────┼── │
-        │   site-proforma → Toronto Open Data (GeoJSON + shapely)             │   │
-        │   massing       → deterministic 3D (Plotly)                         │   │
-        │   vote-predictor ─┐                                                 │   │
-        │   opposition     ─┴─► vLLM: nemotron-3-super NVFP4 (:8001) ◄────────┘   │
-        │                       Ollama: nomic-embed-text (embeddings, :11434)     │
-        └─────────────────────────────────────────────────────────────────────────┘
+ Browser ──click parcel──►  Next.js UI (:3000) ──GET /analyze/stream──►  connector (:8000)
+    ▲                                                                          │
+    └───────────────  SSE: per-node progress + final BriefResponse  ◄──────────┘
+```
+
+**The connector is a LangGraph StateGraph.** Each node is owned by one component; the
+arrows are the real edges (some branches run in parallel):
+
+```
+   LangGraph node            owned by                  data / backend it calls
+ ─────────────────────────────────────────────────────────────────────────────────
+   START
+     ├─► zoning ──────┐
+     │                ├─ run in ──   site-proforma  ──►  Toronto Open Data
+     └─► constraints ─┘  parallel    site-proforma       (zoning, height, heritage,
+                      │                                    fire, transit · GeoJSON+shapely)
+                      ▼
+                  massing            massing-generator ►  deterministic 3D massing (Plotly)
+                      ▼
+                  proforma           site-proforma     ►  financial model (IRR, sensitivities)
+                      │
+          ┌───────────┴───────────┐
+          ▼          run in        ▼
+      approvals      parallel    community
+          │                        │
+      vote-predictor           opposition-generator
+      Reasoner + Skeptic,      hybrid RAG: dense+BM25+RRF
+      196 real precedents      +MMR+HyDE over TMMIS letters
+          │                        │
+          └───────────┬───────────┘
+                      ▼
+                  principal          connector        ►  go/no-go + developability score
+                      ▼                                   (deterministic synthesis)
+                     END  ──►  BriefResponse
+```
+
+**LLM backends — all on the NVIDIA GB10 (128 GB, fully on-device, no cloud):**
+
+```
+   approvals · community · HyDE · letters  ──►  vLLM   nemotron-3-super NVFP4 (:8001)
+                                                       continuous batching · reasoning toggle
+   retrieval embeddings                    ──►  Ollama nomic-embed-text       (:11434)
 ```
 
 Six independent components communicate only through the five contracts in `docs/CONTRACTS.md`; the connector is the only thing that imports the others.
