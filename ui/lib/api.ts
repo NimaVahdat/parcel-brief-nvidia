@@ -85,8 +85,27 @@ export type BriefResponse = {
   recommendation: GoNoGo;
 };
 
-const BASE_URL =
+export const BASE_URL =
   process.env.NEXT_PUBLIC_CONNECTOR_URL ?? "http://localhost:8000";
+
+export type MassingRender = { html_url: string };
+
+// Renders one design option's spec to an interactive 3D HTML view and returns
+// its URL (served by the connector under /renders). Slow — runs the pyvista
+// render pipeline server-side.
+export async function renderMassing(
+  massingId: string,
+  glb = true,
+): Promise<MassingRender> {
+  const res = await fetch(
+    `${BASE_URL}/massing/${encodeURIComponent(massingId)}/render?glb=${glb}`,
+    { method: "POST", cache: "no-store" },
+  );
+  if (!res.ok) {
+    throw new Error(`Render failed ${res.status}: ${await res.text()}`);
+  }
+  return res.json();
+}
 
 export async function analyze(parcelId: string): Promise<BriefResponse> {
   const res = await fetch(`${BASE_URL}/analyze`, {

@@ -2,8 +2,11 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from massing_generator.builder.paths import OUTPUT_DIR, ensure_dirs
 
 from connector.api.routes.analyze import router as analyze_router
+from connector.api.routes.massing import router as massing_router
 
 app = FastAPI(
     title="parcel-brief",
@@ -20,6 +23,11 @@ app.add_middleware(
 )
 
 app.include_router(analyze_router)
+app.include_router(massing_router)
+
+# Serve the massing 3D render artifacts (self-contained HTML, glTF, PNG).
+ensure_dirs()
+app.mount("/renders", StaticFiles(directory=str(OUTPUT_DIR)), name="renders")
 
 
 @app.get("/health")

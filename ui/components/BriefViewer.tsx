@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { BriefResponse, Massing } from "@/lib/api";
+import { BASE_URL, renderMassing } from "@/lib/api";
 
 // ─── formatting helpers ───────────────────────────────────────────────────────
 
@@ -38,7 +39,8 @@ function communityRisk(count: number): {
       label: "Low",
       color: "text-emerald-700",
       bg: "bg-emerald-100",
-      explanation: "Low expected opposition. Minimal community mobilisation likely.",
+      explanation:
+        "Low expected opposition. Minimal community mobilisation likely.",
     };
   if (count < 60)
     return {
@@ -132,7 +134,11 @@ function AnimatedProbabilityBar({
   const barColor =
     pct >= 70 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-500";
   const textColor =
-    pct >= 70 ? "text-emerald-700" : pct >= 50 ? "text-amber-700" : "text-red-700";
+    pct >= 70
+      ? "text-emerald-700"
+      : pct >= 50
+        ? "text-amber-700"
+        : "text-red-700";
 
   return (
     <div>
@@ -337,7 +343,7 @@ function SelectedOptionSummary({
 }) {
   const totalResidential = Object.values(option.unit_mix).reduce(
     (s, n) => s + n,
-    0
+    0,
   );
 
   const metrics = [
@@ -368,9 +374,7 @@ function SelectedOptionSummary({
           <p className="text-base font-bold text-blue-900">
             Option {idx + 1} — Selected Design
           </p>
-          <p className="mt-0.5 text-xs text-blue-600">
-            {option.massing_id}
-          </p>
+          <p className="mt-0.5 text-xs text-blue-600">{option.massing_id}</p>
         </div>
         <span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white">
           Active
@@ -410,6 +414,71 @@ function SelectedOptionSummary({
           </div>
         </div>
       )}
+
+      {/* 3D building render */}
+      <BuildingViewer massingId={option.massing_id} />
+    </div>
+  );
+}
+
+// Renders the selected option's massing to interactive 3D HTML (server-side via
+// the massing_generator render pipeline) and embeds it in an iframe. Re-renders
+// whenever the selected option changes.
+function BuildingViewer({ massingId }: { massingId: string }) {
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading",
+  );
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+    setUrl(null);
+    setError(null);
+    renderMassing(massingId)
+      .then((r) => {
+        if (!cancelled) {
+          setUrl(`${BASE_URL}${r.html_url}`);
+          setStatus("ready");
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e?.message ?? String(e));
+          setStatus("error");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [massingId]);
+
+  return (
+    <div className="mt-3 border-t border-blue-100 pt-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-blue-700">
+        3D Building
+      </p>
+      <div className="relative h-[420px] w-full overflow-hidden rounded-lg border border-blue-200 bg-slate-900">
+        {status === "ready" && url && (
+          <iframe
+            key={url}
+            src={url}
+            title={`3D massing for ${massingId}`}
+            className="h-full w-full border-0"
+          />
+        )}
+        {status === "loading" && (
+          <div className="flex h-full w-full items-center justify-center text-sm text-blue-200">
+            Rendering 3D building…
+          </div>
+        )}
+        {status === "error" && (
+          <div className="flex h-full w-full items-center justify-center px-4 text-center text-sm text-red-300">
+            Could not render 3D building: {error}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -430,14 +499,14 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
   // Animated values — longer durations make the count-up clearly visible
   const animApprovalPct = useCountUp(
     Math.round(approval.approval_probability * 100),
-    1600
+    1600,
   );
   const animIrr5y = useCountUp(fin.irr_5y * 100, 1600);
   const animCost = useCountUp(fin.construction_cost, 1800);
   const animConfidence = useCountUp(Math.round(rec.confidence * 100), 1400);
   const animApprovalPctExec = useCountUp(
     Math.round(approval.approval_probability * 100),
-    1400
+    1400,
   );
 
   // Recommendation colour scheme
@@ -486,12 +555,11 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
     approvalPct >= 70
       ? `At ${approvalPct}%, council approval is likely. The project has a strong majority position.`
       : approvalPct >= 50
-      ? `At ${approvalPct}%, the vote is uncertain. A handful of councillors will determine the outcome.`
-      : `At ${approvalPct}%, approval is unlikely without material changes to the application.`;
+        ? `At ${approvalPct}%, the vote is uncertain. A handful of councillors will determine the outcome.`
+        : `At ${approvalPct}%, approval is unlikely without material changes to the application.`;
 
   return (
     <div className="space-y-4">
-
       {/* ── 1. Executive Summary ─────────────────────────────────────────── */}
       <div
         className={`animate-fade-in-up rounded-xl border ${scheme.border} ${scheme.bg} ${scheme.ring} p-6`}
@@ -511,7 +579,9 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
               <p className={`mt-0.5 text-sm font-medium ${scheme.body}`}>
                 {scheme.subLabel}
               </p>
-              <p className={`mt-2 text-sm leading-relaxed ${scheme.body} opacity-90`}>
+              <p
+                className={`mt-2 text-sm leading-relaxed ${scheme.body} opacity-90`}
+              >
                 {rec.rationale}
               </p>
             </div>
@@ -528,7 +598,7 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
             <div className="text-right">
               <p
                 className={`text-3xl font-bold tabular-nums ${approvalColorClass(
-                  approval.approval_probability
+                  approval.approval_probability,
                 )}`}
               >
                 {animApprovalPctExec.toFixed(0)}%
@@ -607,7 +677,6 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
 
       {/* ── 3. Approval forecast + Community response ─────────────────────── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-
         {/* Approval forecast */}
         <Card
           title="Approval Forecast"
@@ -777,8 +846,14 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: "Construction cost", value: fmtMoney(fin.construction_cost) },
-            { label: "Annual rent", value: fmtMoney(fin.projected_annual_rent) },
+            {
+              label: "Construction cost",
+              value: fmtMoney(fin.construction_cost),
+            },
+            {
+              label: "Annual rent",
+              value: fmtMoney(fin.projected_annual_rent),
+            },
             {
               label: "Sale price",
               value: fin.projected_sale_price
@@ -798,7 +873,9 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
             },
           ].map(({ label, value, colorClass }) => (
             <div key={label} className="text-center">
-              <p className={`text-xl font-bold ${colorClass ?? "text-slate-900"}`}>
+              <p
+                className={`text-xl font-bold ${colorClass ?? "text-slate-900"}`}
+              >
                 {value}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">{label}</p>
@@ -818,16 +895,16 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                     <th className="pb-2 text-left font-semibold text-slate-500">
                       Scenario
                     </th>
-                    {Object.keys(
-                      Object.values(fin.sensitivities)[0] ?? {}
-                    ).map((k) => (
-                      <th
-                        key={k}
-                        className="pb-2 text-right font-semibold text-slate-500"
-                      >
-                        {k}
-                      </th>
-                    ))}
+                    {Object.keys(Object.values(fin.sensitivities)[0] ?? {}).map(
+                      (k) => (
+                        <th
+                          key={k}
+                          className="pb-2 text-right font-semibold text-slate-500"
+                        >
+                          {k}
+                        </th>
+                      ),
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -846,7 +923,7 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                           </td>
                         ))}
                       </tr>
-                    )
+                    ),
                   )}
                 </tbody>
               </table>
@@ -911,8 +988,8 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                   con.heritage_status === "designated"
                     ? "bg-red-100 text-red-700"
                     : con.heritage_status === "listed"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-slate-100 text-slate-600"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-slate-100 text-slate-600"
                 }`}
               >
                 {con.heritage_status}
@@ -1094,7 +1171,7 @@ export default function BriefViewer({ brief }: { brief: BriefResponse }) {
                             >
                               {count} {type}
                             </span>
-                          )
+                          ),
                         )}
                       </div>
                     </div>

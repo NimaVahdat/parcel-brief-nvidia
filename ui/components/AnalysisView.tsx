@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import type { BriefResponse } from "@/lib/api";
-import { analyze } from "@/lib/api";
+import { analyze, renderMassing } from "@/lib/api";
 import BriefViewer from "@/components/BriefViewer";
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -150,7 +150,7 @@ function useSubTaskCycle(activeAgentIdx: number): number {
     if (!agent) return;
     const interval = setInterval(
       () => setIdx((i) => (i + 1) % agent.tasks.length),
-      1400
+      1400,
     );
     return () => clearInterval(interval);
   }, [activeAgentIdx]);
@@ -178,7 +178,7 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
   // Simulated stage pacing — runs always so the user sees agents advancing
   useEffect(() => {
     const ids = STAGE_CUMULATIVE_MS.map((ms, i) =>
-      setTimeout(() => setCompleted(i + 1), ms)
+      setTimeout(() => setCompleted(i + 1), ms),
     );
     timerIdsRef.current = ids;
     return () => ids.forEach(clearTimeout);
@@ -190,13 +190,20 @@ export default function AnalysisView({ parcelId }: { parcelId: string }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Real API fetch
+  // Real API fetch. Once the brief is in, kick off the massing-generator render
+  // for every design option (fire-and-forget) so the 3D HTML is ready in the
+  // cache by the time the user opens / switches options in the brief.
   useEffect(() => {
     analyze(parcelId)
-      .then((brief) => setApiResult({ brief, error: null }))
-      .catch((e) =>
-        setApiResult({ brief: null, error: (e as Error).message })
-      );
+      .then((brief) => {
+        setApiResult({ brief, error: null });
+        for (const opt of brief.design_options.options) {
+          renderMassing(opt.massing_id).catch(() => {
+            /* warm-up only; BuildingViewer re-fetches and surfaces errors */
+          });
+        }
+      })
+      .catch((e) => setApiResult({ brief: null, error: (e as Error).message }));
   }, [parcelId]);
 
   // When BOTH the API result is ready AND the minimum display time has elapsed:
@@ -249,7 +256,6 @@ function SuccessState({ parcelId }: { parcelId: string }) {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 py-12 animate-fade-in">
       <div className="flex w-full max-w-2xl flex-col items-center gap-6">
-
         {/* Animated green checkmark */}
         <div className="animate-scale-in flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500 shadow-lg">
           <svg viewBox="0 0 40 40" className="h-10 w-10" aria-hidden="true">
@@ -353,7 +359,7 @@ function SuccessState({ parcelId }: { parcelId: string }) {
 
 function fmtElapsed(s: number): string {
   return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(
-    s % 60
+    s % 60,
   ).padStart(2, "0")}`;
 }
 
@@ -385,20 +391,28 @@ function ProgressView({
 
   return (
     <div className="flex flex-col items-center px-4 py-10">
-
       {/* ── Header ── */}
       <div className="mb-8 flex flex-col items-center gap-4 text-center">
         {/* Circular progress ring — larger and bolder */}
         <div className="relative h-[88px] w-[88px]">
-          <svg className="-rotate-90" viewBox="0 0 80 80" width="88" height="88">
+          <svg
+            className="-rotate-90"
+            viewBox="0 0 80 80"
+            width="88"
+            height="88"
+          >
             <circle
-              cx="40" cy="40" r="36"
+              cx="40"
+              cy="40"
+              r="36"
               fill="none"
               stroke="#e2e8f0"
               strokeWidth="6"
             />
             <circle
-              cx="40" cy="40" r="36"
+              cx="40"
+              cy="40"
+              r="36"
               fill="none"
               stroke={progressPct >= 100 ? "#10b981" : "#3b82f6"}
               strokeWidth="6"
@@ -433,7 +447,9 @@ function ProgressView({
               {completedCount} of {AGENTS.length} agents complete
             </span>
             <span aria-hidden>·</span>
-            <span className="font-mono tabular-nums">{fmtElapsed(elapsed)}</span>
+            <span className="font-mono tabular-nums">
+              {fmtElapsed(elapsed)}
+            </span>
           </div>
         </div>
       </div>
@@ -452,8 +468,8 @@ function ProgressView({
                 isRunning
                   ? "border-blue-300 bg-blue-50 shadow-md"
                   : isDone
-                  ? "border-emerald-100 bg-white opacity-70"
-                  : "border-transparent bg-white/40 opacity-25"
+                    ? "border-emerald-100 bg-white opacity-70"
+                    : "border-transparent bg-white/40 opacity-25"
               }`}
             >
               {/* Status icon */}
@@ -462,8 +478,8 @@ function ProgressView({
                   isDone
                     ? "bg-emerald-500"
                     : isRunning
-                    ? "bg-blue-500"
-                    : "bg-slate-200"
+                      ? "bg-blue-500"
+                      : "bg-slate-200"
                 }`}
               >
                 {isDone ? (
@@ -497,8 +513,8 @@ function ProgressView({
                       isRunning
                         ? "text-blue-900"
                         : isDone
-                        ? "text-slate-500"
-                        : "text-slate-400"
+                          ? "text-slate-500"
+                          : "text-slate-400"
                     }`}
                   >
                     {agent.name}
@@ -509,7 +525,9 @@ function ProgressView({
                     </span>
                   )}
                   {isDone && (
-                    <span className="text-xs text-slate-400">{agent.label}</span>
+                    <span className="text-xs text-slate-400">
+                      {agent.label}
+                    </span>
                   )}
                 </div>
 
